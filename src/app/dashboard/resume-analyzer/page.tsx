@@ -134,23 +134,84 @@ export default function ResumeAnalyzer() {
     setExtractedText('');
     textFetchedRef.current = false;
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const response = await fetch('/api/resume', {
-        method: 'POST',
-        body: formData,
+      const fileName = file.name.toLowerCase();
+      let parsedText = '';
+
+      // Read file into ArrayBuffer using FileReader for highest browser & mobile compatibility
+      const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (e.target?.result instanceof ArrayBuffer) {
+            resolve(e.target.result);
+          } else {
+            reject(new Error('Failed to read file as ArrayBuffer.'));
+          }
+        };
+        reader.onerror = () => reject(new Error('File reading error.'));
+        reader.readAsArrayBuffer(file);
       });
 
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to parse document content');
+      if (file.type === 'application/pdf' || fileName.endsWith('.pdf')) {
+        // Local PDF Parsing
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs') as any;
+        pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
+
+        const loadingTask = pdfjs.getDocument({ data: new Uint8Array(arrayBuffer) });
+        const pdf = await loadingTask.promise;
+        let text = '';
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .map((item: { str?: string }) => item.str || '')
+            .join(' ');
+          text += pageText + '\n';
+        }
+        parsedText = text;
+      } else if (
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        fileName.endsWith('.docx')
+      ) {
+        // Local DOCX Parsing
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mammoth = await import('mammoth') as any;
+        const extractFn = mammoth.default ? mammoth.default.extractRawText : mammoth.extractRawText;
+        const result = await extractFn({ arrayBuffer });
+        parsedText = result.value || '';
+      } else if (file.type.startsWith('text/') || fileName.endsWith('.txt')) {
+        // Local Text Parsing
+        parsedText = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string || '');
+          reader.onerror = () => reject(new Error('Failed to read text file.'));
+          reader.readAsText(file);
+        });
+      } else {
+        // Try reading via Mammoth fallback or throw error
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const mammoth = await import('mammoth') as any;
+          const extractFn = mammoth.default ? mammoth.default.extractRawText : mammoth.extractRawText;
+          const result = await extractFn({ arrayBuffer });
+          parsedText = result.value || '';
+        } catch {
+          throw new Error('Unsupported file format. Please upload a PDF, DOCX, or TXT file.');
+        }
       }
-      setExtractedText(data.text || ' ');
+
+      const cleanParsed = parsedText.trim();
+      if (!cleanParsed) {
+        throw new Error('No readable text could be extracted from this document. Please ensure the document is not a scanned image, empty, or password protected.');
+      }
+
+      setExtractedText(cleanParsed);
       textFetchedRef.current = true;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'An error occurred while uploading. Please check the file formatting.';
+      console.error('Local resume analysis failed:', err);
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred during local resume analysis. Please verify your file format.';
       alert(errorMsg);
       setPhase('upload');
     }
