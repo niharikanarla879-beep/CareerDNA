@@ -4,11 +4,13 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Dna, ShieldAlert, KeyRound, Mail, User, ArrowRight, Loader2 } from 'lucide-react';
+import { useResume } from '@/lib/resume-context';
+import { Dna, ShieldAlert, KeyRound, Mail, User, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
   const { user, signup, loading, isMockMode } = useAuth();
+  const { loginDemoUser } = useResume();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -52,8 +54,31 @@ export default function RegisterPage() {
       } else {
         setErrorMsg(res.error || 'Failed to register account.');
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      const error = err as Error;
+      setErrorMsg(error.message || 'An unexpected error occurred.');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleLaunchDemo = async () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    setFormLoading(true);
+    try {
+      const success = await loginDemoUser();
+      if (success) {
+        setSuccessMsg('Demo candidate mode activated! Redirecting...');
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 800);
+      } else {
+        setErrorMsg('Failed to initialize demo candidate mode.');
+      }
+    } catch (err) {
+      const error = err as Error;
+      setErrorMsg(error.message || 'Failed to initialize demo candidate mode.');
     } finally {
       setFormLoading(false);
     }
@@ -93,7 +118,7 @@ export default function RegisterPage() {
             <div className="text-xs space-y-1">
               <span className="font-bold">Sandbox Registration Active</span>
               <p className="text-slate-400 leading-relaxed">
-                Supabase keys are missing. This account will be created locally in your browser's sandboxed storage. <strong>Do NOT use real passwords</strong>, as sandbox profiles are stored in plain text inside browser localStorage.
+                Supabase keys are missing. This account will be created locally in your browser&apos;s sandboxed storage.
               </p>
             </div>
           </div>
@@ -198,6 +223,21 @@ export default function RegisterPage() {
               )}
             </button>
           </form>
+
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-slate-900"></div>
+            <span className="flex-shrink mx-4 text-[10px] text-slate-600 font-bold uppercase tracking-wider">or</span>
+            <div className="flex-grow border-t border-slate-900"></div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleLaunchDemo}
+            disabled={formLoading}
+            className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 disabled:from-amber-500/50 disabled:to-amber-600/50 text-slate-950 font-bold rounded-xl py-3 flex items-center justify-center gap-2 transition-smooth shadow-lg cursor-pointer"
+          >
+            <Sparkles className="h-4 w-4 text-slate-950" /> Launch Demo Candidate Mode
+          </button>
 
           <div className="text-center pt-2">
             <p className="text-xs text-slate-500">

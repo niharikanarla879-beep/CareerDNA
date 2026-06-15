@@ -4,11 +4,13 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Dna, ShieldAlert, KeyRound, Mail, ArrowRight, Loader2 } from 'lucide-react';
+import { useResume } from '@/lib/resume-context';
+import { Dna, ShieldAlert, KeyRound, Mail, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const { user, login, loading, isMockMode } = useAuth();
+  const { loginDemoUser } = useResume();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [formLoading, setFormLoading] = useState(false);
@@ -44,8 +46,31 @@ export default function LoginPage() {
       } else {
         setErrorMsg(res.error || 'Invalid credentials.');
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      const error = err as Error;
+      setErrorMsg(error.message || 'An unexpected error occurred.');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleLaunchDemo = async () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    setFormLoading(true);
+    try {
+      const success = await loginDemoUser();
+      if (success) {
+        setSuccessMsg('Demo candidate mode activated! Redirecting...');
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 800);
+      } else {
+        setErrorMsg('Failed to initialize demo candidate mode.');
+      }
+    } catch (err) {
+      const error = err as Error;
+      setErrorMsg(error.message || 'Failed to initialize demo candidate mode.');
     } finally {
       setFormLoading(false);
     }
@@ -85,7 +110,7 @@ export default function LoginPage() {
             <div className="text-xs space-y-1">
               <span className="font-bold">Sandbox Mode Enabled</span>
               <p className="text-slate-400 leading-relaxed">
-                Supabase keys are missing. You can log in using any previously registered mock account. <strong>Do NOT enter real passwords</strong>, as sandbox profiles are stored in plain text inside browser localStorage.
+                Supabase keys are missing. You can log in using any previously registered mock account or access candidate mode.
               </p>
             </div>
           </div>
@@ -163,9 +188,24 @@ export default function LoginPage() {
             </button>
           </form>
 
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-slate-900"></div>
+            <span className="flex-shrink mx-4 text-[10px] text-slate-600 font-bold uppercase tracking-wider">or</span>
+            <div className="flex-grow border-t border-slate-900"></div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleLaunchDemo}
+            disabled={formLoading}
+            className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 disabled:from-amber-500/50 disabled:to-amber-600/50 text-slate-950 font-bold rounded-xl py-3 flex items-center justify-center gap-2 transition-smooth shadow-lg cursor-pointer"
+          >
+            <Sparkles className="h-4 w-4 text-slate-950" /> Launch Demo Candidate Mode
+          </button>
+
           <div className="text-center pt-2">
             <p className="text-xs text-slate-500">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link
                 href="/register"
                 className="font-bold text-slate-300 hover:text-indigo-400 transition-smooth"

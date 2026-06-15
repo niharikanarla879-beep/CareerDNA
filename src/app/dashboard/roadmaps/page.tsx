@@ -1017,8 +1017,9 @@ const roadmapTemplates: Record<string, Record<'foundational' | 'intermediate' | 
 
 export default function Roadmaps() {
   const { user } = useAuth();
-  const { latestResume, targetCareerId, setTargetCareerId } = useResume();
-  const [completedSteps, setCompletedSteps] = useState<Record<string, boolean>>({});
+  const { latestResume, targetCareerId, setTargetCareerId, roadmapProgress, toggleRoadmapStep } = useResume();
+  const completedSteps = roadmapProgress;
+  const toggleStep = toggleRoadmapStep;
   const [activeRoadmap, setActiveRoadmap] = useState<RoadmapMilestone[]>([]);
 
   const targetCareer = targetCareerId || 'swe';
@@ -1029,22 +1030,6 @@ export default function Roadmaps() {
     if (resumeScore >= 50) return 'intermediate';
     return 'foundational';
   }, [resumeScore]);
-
-  // Load saved roadmaps completion details safely
-  useEffect(() => {
-    if (!user) return;
-    try {
-      const savedCompletion = localStorage.getItem(`careerdna_roadmaps_completion_${user.id}`);
-      if (savedCompletion) {
-        const parsed = JSON.parse(savedCompletion);
-        if (typeof parsed === 'object' && parsed !== null) {
-          setCompletedSteps(parsed);
-        }
-      }
-    } catch (e) {
-      console.error('Error parsing roadmap completion safely:', e);
-    }
-  }, [user]);
 
   // Regenerate/load roadmap milestones whenever targetCareer or difficulty changes
   useEffect(() => {
@@ -1080,24 +1065,6 @@ export default function Roadmaps() {
       }
     }
   }, [targetCareer, roadmapDifficulty, user]);
-
-  const toggleStep = (stepKey: string) => {
-    if (!user) return;
-    const updated = {
-      ...completedSteps,
-      [stepKey]: !completedSteps[stepKey]
-    };
-    setCompletedSteps(updated);
-    try {
-      localStorage.setItem(`careerdna_roadmaps_completion_${user.id}`, JSON.stringify(updated));
-    } catch (e) {
-      console.error('Error saving completion steps safely:', e);
-    }
-    
-    // Trigger dashboard refresh
-    window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('careerdna_resume_sync'));
-  };
 
   const handleCareerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setTargetCareerId(e.target.value);

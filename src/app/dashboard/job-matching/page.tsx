@@ -27,141 +27,8 @@ interface MatchedJob {
   skillsRequired: string[];
   description: string;
   fitIndicators: string[];
+  url: string;
 }
-
-
-const mockJobsByRole: Record<string, MatchedJob[]> = {
-  swe: [
-    {
-      id: 'swe-1',
-      title: 'Senior Software Engineer',
-      company: 'Logix Cloud Solutions',
-      location: 'Remote (US/Canada)',
-      experienceRequired: '5+ years',
-      skillsRequired: ['React', 'TypeScript', 'Node.js', 'System Design', 'SQL', 'AWS'],
-      description: 'We are seeking a senior software engineer to lead the design and launch of high-traffic containerised systems. Experience with backend query optimizations and cloud infrastructure deployment is highly valued.',
-      fitIndicators: ['Highly scalable structures', 'Collaborative mentorship goals', 'Technical freedom options']
-    },
-    {
-      id: 'swe-2',
-      title: 'Full Stack Engineer',
-      company: 'Aura Web Solutions',
-      location: 'San Francisco, CA',
-      experienceRequired: '3+ years',
-      skillsRequired: ['React', 'JavaScript', 'REST APIs', 'SQL', 'Git', 'Docker'],
-      description: 'Join our product team engineering frontend layout modules and RESTful backend integrations. Must understand Git version controls and automated tests.',
-      fitIndicators: ['Fast agile cycles', 'Full-stack variety', 'High feature ownership']
-    }
-  ],
-  frontend: [
-    {
-      id: 'fe-1',
-      title: 'Senior Frontend Developer',
-      company: 'Interactive Studio',
-      location: 'Austin, TX (Hybrid)',
-      experienceRequired: '4+ years',
-      skillsRequired: ['React', 'TypeScript', 'JavaScript', 'CSS3', 'State Management', 'Web Performance'],
-      description: 'Seeking a frontend expert to construct premium design layouts and optimize page renders. Experience with CSS styling libraries (Tailwind) and Core Web Vitals optimizations is required.',
-      fitIndicators: ['Curated UI patterns', 'Accessibility focus', 'Creative layout ownership']
-    }
-  ],
-  backend: [
-    {
-      id: 'be-1',
-      title: 'Backend Systems Engineer',
-      company: 'Core Database Labs',
-      location: 'Seattle, WA',
-      experienceRequired: '5+ years',
-      skillsRequired: ['Node.js', 'SQL', 'NoSQL', 'System Design', 'REST APIs', 'Docker', 'AWS'],
-      description: 'Help us scale event-driven server engines and design database schemas. Experience with cache indexing, queue networks, and AWS Lambda deployments is preferred.',
-      fitIndicators: ['Heavy systems design focus', 'High throughput challenges', 'Secure infrastructure goals']
-    }
-  ],
-  fullstack: [
-    {
-      id: 'fs-1',
-      title: 'Full Stack Engineer (L5)',
-      company: 'Helix FinTech',
-      location: 'Remote',
-      experienceRequired: '4+ years',
-      skillsRequired: ['React', 'JavaScript', 'TypeScript', 'Node.js', 'REST APIs', 'SQL', 'Git', 'AWS'],
-      description: 'Build robust fintech portals combining polished web layouts with secured ledger database services.',
-      fitIndicators: ['End-to-end feature pipelines', 'Fintech security criteria', 'Cross-functional alignment']
-    }
-  ],
-  ai: [
-    {
-      id: 'ai-1',
-      title: 'Generative AI Engineer',
-      company: 'Insight AI Labs',
-      location: 'New York, NY',
-      experienceRequired: '3+ years',
-      skillsRequired: ['Python', 'LLMs', 'Prompt Engineering', 'RAG', 'Vector Databases', 'LangChain'],
-      description: 'Help us design intelligent conversational assistants, fine-tune open-source models, and configure Pinecone/Chroma semantic indexes.',
-      fitIndicators: ['Cutting-edge model tooling', 'Iterative prompt design', 'Agentic workflow architectures']
-    }
-  ],
-  ml: [
-    {
-      id: 'ml-1',
-      title: 'Machine Learning Infrastructure Engineer',
-      company: 'Neural Robotics',
-      location: 'Boston, MA (Hybrid)',
-      experienceRequired: '4+ years',
-      skillsRequired: ['Python', 'Machine Learning', 'Deep Learning', 'PyTorch', 'MLOps', 'Docker'],
-      description: 'Deploy machine learning classification networks to production hosts. Optimizing CUDA execution and model retraining pipelines is critical.',
-      fitIndicators: ['High-performance computing', 'ML pipeline automation', 'Visual classification layers']
-    }
-  ],
-  pm: [
-    {
-      id: 'pm-1',
-      title: 'Technical Product Manager',
-      company: 'Apex SaaS Products',
-      location: 'Remote (US)',
-      experienceRequired: '4+ years',
-      skillsRequired: ['Agile', 'Product Roadmap', 'User Interviews', 'PRDs', 'KPIs', 'Stakeholder Management'],
-      description: 'Manage the product lifecycles of our core analytics services. Lead sprint cycles, author PRDs, coordinate user discovery, and align engineering stakeholders.',
-      fitIndicators: ['Data-driven metrics strategy', 'Empathetic customer research', 'Highly collaborative team environment']
-    }
-  ],
-  ds: [
-    {
-      id: 'ds-1',
-      title: 'Senior Data Scientist',
-      company: 'Vanguard Retail Analytics',
-      location: 'Chicago, IL',
-      experienceRequired: '5+ years',
-      skillsRequired: ['Python', 'SQL', 'Machine Learning', 'Statistics', 'Deep Learning', 'Scikit-Learn'],
-      description: 'Develop predictive customer lifetime value models and design A/B testing frameworks to guide retail investment decisions.',
-      fitIndicators: ['Complex experimental modeling', 'Business decision influence', 'Scale statistics indexing']
-    }
-  ],
-  ux: [
-    {
-      id: 'ux-1',
-      title: 'Lead Product Designer',
-      company: 'Arc Creative Group',
-      location: 'Remote',
-      experienceRequired: '5+ years',
-      skillsRequired: ['Figma', 'UI/UX', 'Prototyping', 'User Research', 'Usability Testing', 'Design Systems'],
-      description: 'Own user journeys from research interviews to hi-fi interactive prototypes. Establish global visual design systems and developer handoff guidelines.',
-      fitIndicators: ['Visual design excellence', 'Empathetic user research', 'Strong system consistency']
-    }
-  ],
-  da: [
-    {
-      id: 'da-1',
-      title: 'Senior Business Intelligence Analyst',
-      company: 'Nova Commerce Corp',
-      location: 'Remote',
-      experienceRequired: '3+ years',
-      skillsRequired: ['SQL', 'Excel', 'Tableau', 'Power BI', 'Data Analysis', 'Data Visualization'],
-      description: 'Analyze commerce marketing funnels, build automated Tableau reporting schedules, and communicate KPI metrics directly to management.',
-      fitIndicators: ['Direct dashboard automation', 'Data pipeline cleaning work', 'Business growth metrics mapping']
-    }
-  ]
-};
 
 export default function JobMatching() {
   const { user } = useAuth();
@@ -170,6 +37,7 @@ export default function JobMatching() {
   const [sortedListings, setSortedListings] = useState<(MatchedJob & { compatibilityScore: number; compatibilityReason: string })[]>([]);
   const [selectedJob, setSelectedJob] = useState<(MatchedJob & { compatibilityScore: number; compatibilityReason: string }) | null>(null);
   const [customJd, setCustomJd] = useState('');
+  const [loadingJobs, setLoadingJobs] = useState(false);
   
   // Calculation states
   const [matchScore, setMatchScore] = useState(0);
@@ -186,50 +54,71 @@ export default function JobMatching() {
 
   // Compute sorted listings based on current skills and target career
   useEffect(() => {
-    const rawListings = mockJobsByRole[targetCareer] || mockJobsByRole['swe'];
-    const lowerSkills = currentSkills.map(s => s.toLowerCase());
+    let active = true;
 
-    const processed = rawListings.map(job => {
-      const matched: string[] = [];
-      const missing: string[] = [];
+    async function loadLiveJobs() {
+      setLoadingJobs(true);
+      try {
+        const response = await fetch(`/api/jobs?roleId=${targetCareer}&skills=${encodeURIComponent(currentSkills.join(','))}`);
+        if (!response.ok) throw new Error('Failed to load live jobs');
+        
+        const data = await response.json();
+        if (!active) return;
 
-      job.skillsRequired.forEach(skill => {
-        if (lowerSkills.includes(skill.toLowerCase())) {
-          matched.push(skill);
-        } else {
-          missing.push(skill);
+        if (data.success && data.jobs) {
+          const lowerSkills = currentSkills.map(s => s.toLowerCase());
+          const processed = data.jobs.map((job: MatchedJob) => {
+            const matched: string[] = [];
+            const missing: string[] = [];
+
+            job.skillsRequired.forEach(skill => {
+              if (lowerSkills.includes(skill.toLowerCase())) {
+                matched.push(skill);
+              } else {
+                missing.push(skill);
+              }
+            });
+
+            const skillRatio = job.skillsRequired.length > 0 ? matched.length / job.skillsRequired.length : 0.5;
+            const compatibilityScore = Math.min(100, Math.round(50 + skillRatio * 50));
+
+            let compatibilityReason = "";
+            if (compatibilityScore >= 85) {
+              compatibilityReason = `Excellent match! Your resume verified skills (${matched.join(', ')}) cover almost all of the core technologies required for this role at ${job.company}.`;
+            } else if (compatibilityScore >= 65) {
+              compatibilityReason = `Strong alignment. You possess key skills like ${matched.join(', ')}. Addressing gaps in ${missing.join(', ')} would make you a highly competitive candidate.`;
+            } else {
+              compatibilityReason = `Foundational match. While you have experience in ${matched.length > 0 ? matched.join(', ') : 'related domains'}, you would benefit from developing skills in ${missing.join(', ')} to meet the core specifications of this role.`;
+            }
+
+            return {
+              ...job,
+              compatibilityScore,
+              compatibilityReason
+            };
+          });
+
+          const sorted = [...processed].sort((a, b) => b.compatibilityScore - a.compatibilityScore);
+          setSortedListings(sorted);
+
+          if (sorted.length > 0) {
+            setSelectedJob(sorted[0]);
+          } else {
+            setSelectedJob(null);
+          }
         }
-      });
-
-      const skillRatio = job.skillsRequired.length > 0 ? matched.length / job.skillsRequired.length : 0.5;
-      const compatibilityScore = Math.min(100, Math.round(50 + skillRatio * 50));
-
-      let compatibilityReason = "";
-      if (compatibilityScore >= 85) {
-        compatibilityReason = `Excellent match! Your resume verified skills (${matched.join(', ')}) cover almost all of the core technologies required for this role at ${job.company}.`;
-      } else if (compatibilityScore >= 65) {
-        compatibilityReason = `Strong alignment. You possess key skills like ${matched.join(', ')}. Addressing gaps in ${missing.join(', ')} would make you a highly competitive candidate.`;
-      } else {
-        compatibilityReason = `Foundational match. While you have experience in ${matched.length > 0 ? matched.join(', ') : 'related domains'}, you would benefit from developing skills in ${missing.join(', ')} to meet the core specifications of this role.`;
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (active) setLoadingJobs(false);
       }
-
-      return {
-        ...job,
-        compatibilityScore,
-        compatibilityReason
-      };
-    });
-
-    // Sort listings descending by score
-    const sorted = [...processed].sort((a, b) => b.compatibilityScore - a.compatibilityScore);
-    setSortedListings(sorted);
-
-    // Default to highest matching job
-    if (sorted.length > 0) {
-      setSelectedJob(sorted[0]);
-    } else {
-      setSelectedJob(null);
     }
+
+    loadLiveJobs();
+
+    return () => {
+      active = false;
+    };
   }, [targetCareer, currentSkills]);
 
   // Handle selected job change and recalculate scores
@@ -415,7 +304,12 @@ export default function JobMatching() {
           <div className="lg:col-span-5 space-y-4">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">Openings For Your Active Target Role</h3>
             
-            {sortedListings.length === 0 ? (
+            {loadingJobs ? (
+              <div className="p-8 rounded-2xl bg-slate-900/20 border border-slate-900 text-center text-xs text-slate-500 font-semibold flex flex-col items-center justify-center gap-3">
+                <span className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-500 border-t-transparent" />
+                <span>Fetching live job postings...</span>
+              </div>
+            ) : sortedListings.length === 0 ? (
               <div className="p-8 rounded-2xl bg-slate-900/20 border border-slate-900 text-center text-xs text-slate-500 font-semibold">
                 No active listings found for this career category.
               </div>
@@ -490,9 +384,19 @@ export default function JobMatching() {
                   <div>
                     <h3 className="font-bold text-white text-base">{selectedJob.title}</h3>
                     <p className="text-xs font-semibold text-slate-400">{selectedJob.company} — {selectedJob.location}</p>
-                    <span className="inline-block px-2 py-0.5 rounded bg-slate-900 text-[10px] text-slate-500 font-mono font-bold mt-2 border border-slate-800">
-                      Experience: {selectedJob.experienceRequired}
-                    </span>
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="inline-block px-2 py-0.5 rounded bg-slate-900 text-[10px] text-slate-500 font-mono font-bold border border-slate-800">
+                        Experience: {selectedJob.experienceRequired}
+                      </span>
+                      <a 
+                        href={selectedJob.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-[10px] text-white font-bold transition-smooth"
+                      >
+                        Apply on Arbeitnow
+                      </a>
+                    </div>
                   </div>
 
                   <div className="space-y-1.5 border-t border-slate-900/60 pt-4">

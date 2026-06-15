@@ -200,28 +200,78 @@ export default function ResumeBuilder() {
   };
 
   // AI Assist Generators
-  const triggerAiSummary = () => {
+  const triggerAiSummary = async () => {
     setAiGenerating(true);
-    setTimeout(() => {
-      const content = aiMockContent[targetRole] || aiMockContent['swe'];
-      setSummary(content.summary);
-      saveResume({ personalInfo, summary: content.summary, experience, education, skills, template });
+    try {
+      const userSkills = skills.map(s => s.name).filter(Boolean).join(', ');
+      const userCompanies = experience.map(exp => exp.company).filter(Boolean).join(', ');
+      const roleName = targetCareers.find(c => c.id === targetRole)?.name || targetRole;
+
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate_summary',
+          roleName,
+          skills: userSkills,
+          companies: userCompanies
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to generate summary');
+      }
+
+      setSummary(data.text);
+      saveResume({ personalInfo, summary: data.text, experience, education, skills, template });
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Error generating summary. Please make sure GEMINI_API_KEY is configured in your .env.local file.');
+    } finally {
       setAiGenerating(false);
-    }, 800);
+    }
   };
 
-  const triggerAiBullets = (index: number) => {
-    const content = aiMockContent[targetRole] || aiMockContent['swe'];
-    const randomBullet = content.bullets[Math.floor(Math.random() * content.bullets.length)];
-    
-    const updatedExp = [...experience];
-    const prevDesc = updatedExp[index].description;
-    updatedExp[index].description = prevDesc 
-      ? prevDesc.trim() + '\n- ' + randomBullet
-      : '- ' + randomBullet;
-      
-    setExperience(updatedExp);
-    saveResume({ personalInfo, summary, experience: updatedExp, education, skills, template });
+  const triggerAiBullets = async (index: number) => {
+    setAiGenerating(true);
+    try {
+      const expItem = experience[index];
+      const roleName = targetCareers.find(c => c.id === targetRole)?.name || targetRole;
+      const userSkills = skills.map(s => s.name).filter(Boolean);
+
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate_bullets',
+          roleName,
+          company: expItem.company || 'TechCorp',
+          title: expItem.title || 'Developer',
+          description: expItem.description || '',
+          skills: userSkills
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to generate bullet point');
+      }
+
+      const updatedExp = [...experience];
+      const prevDesc = updatedExp[index].description;
+      updatedExp[index].description = prevDesc 
+        ? prevDesc.trim() + '\n- ' + data.text
+        : '- ' + data.text;
+        
+      setExperience(updatedExp);
+      saveResume({ personalInfo, summary, experience: updatedExp, education, skills, template });
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Error generating bullet point. Please make sure GEMINI_API_KEY is configured in your .env.local file.');
+    } finally {
+      setAiGenerating(false);
+    }
   };
 
   // Experience handlers

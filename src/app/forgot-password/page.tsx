@@ -35,8 +35,9 @@ export default function ForgotPasswordPage() {
       } else {
         setErrorMsg(res.error || 'Failed to submit password recovery request.');
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      const error = err as Error;
+      setErrorMsg(error.message || 'An unexpected error occurred.');
     } finally {
       setFormLoading(false);
     }

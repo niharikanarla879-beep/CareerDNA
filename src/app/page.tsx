@@ -1,5 +1,9 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useResume } from '@/lib/resume-context';
 import { 
   Dna, 
   FileText, 
@@ -15,6 +19,18 @@ import {
 } from 'lucide-react';
 
 export default function LandingPage() {
+  const { loginDemoUser } = useResume();
+  const router = useRouter();
+
+  const handleLaunchDemo = async () => {
+    const success = await loginDemoUser();
+    if (success) {
+      router.push('/dashboard');
+    } else {
+      alert('Failed to initialize demo profile.');
+    }
+  };
+
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-slate-950 text-slate-100 flex flex-col justify-between">
       {/* Decorative Glow Elements */}
@@ -36,8 +52,7 @@ export default function LandingPage() {
 
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
             <a href="#features" className="hover:text-indigo-400 transition-smooth">Features</a>
-            <a href="#about" className="hover:text-indigo-400 transition-smooth">How it Works</a>
-            <a href="#pricing" className="hover:text-indigo-400 transition-smooth">System Score</a>
+            <a href="#about" className="hover:text-indigo-400 transition-smooth font-mono text-xs bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-amber-400 rounded-full">Hack2Skill Submission</a>
           </nav>
 
           <div className="flex items-center gap-4">
@@ -48,7 +63,7 @@ export default function LandingPage() {
               href="/register" 
               className="relative group overflow-hidden rounded-full px-5 py-2.5 text-sm font-semibold text-slate-950 bg-gradient-to-r from-indigo-400 to-teal-300 hover:from-indigo-500 hover:to-teal-400 transition-smooth shadow-lg shadow-indigo-400/10"
             >
-              Get Started Free
+              Get Started
             </Link>
           </div>
         </div>
@@ -75,18 +90,18 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start pt-2">
+              <button
+                onClick={handleLaunchDemo}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 px-8 py-4 font-bold shadow-lg shadow-amber-500/15 transition-smooth cursor-pointer"
+              >
+                <Sparkles className="h-4 w-4 stroke-[3] text-slate-950" /> View Demo Profile (Judges)
+              </button>
               <Link 
                 href="/register" 
                 className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 font-semibold shadow-lg shadow-indigo-600/20 transition-smooth"
               >
                 Start Assessment <ArrowRight className="h-4 w-4" />
               </Link>
-              <a 
-                href="#features" 
-                className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-full border border-slate-800 bg-slate-950/40 hover:bg-slate-900 px-8 py-4 font-semibold transition-smooth text-slate-300"
-              >
-                Explore Modules
-              </a>
             </div>
 
             <div className="grid grid-cols-3 gap-6 pt-8 border-t border-slate-900/60 max-w-md mx-auto lg:mx-0">
@@ -121,8 +136,8 @@ export default function LandingPage() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold text-white">Alex Mercer</h3>
-                    <p className="text-xs text-slate-400">Target Role: Senior Software Engineer</p>
+                    <h3 className="font-semibold text-white">Demo Candidate</h3>
+                    <p className="text-xs text-slate-400">Target Role: Software Engineer</p>
                   </div>
                   <div className="h-12 w-12 rounded-full border-2 border-indigo-500/30 flex items-center justify-center text-xs font-extrabold text-indigo-400 bg-indigo-950/20 shadow-inner">
                     84%
@@ -143,7 +158,7 @@ export default function LandingPage() {
                   <div className="p-3.5 rounded-2xl bg-slate-950/50 border border-slate-900 space-y-1">
                     <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">ATS Resume</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-white">78/100</span>
+                      <span className="text-sm font-bold text-white">84/100</span>
                       <span className="text-xs text-green-400 font-medium">Good</span>
                     </div>
                   </div>
@@ -185,7 +200,7 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Assessment */}
-            <div className="glass-panel glass-panel-hover p-8 rounded-3xl transition-smooth space-y-4">
+            <div className="glass-panel p-8 rounded-3xl transition-smooth space-y-4">
               <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
                 <Dna className="h-6 w-6" />
               </div>
@@ -196,7 +211,7 @@ export default function LandingPage() {
             </div>
 
             {/* ATS Analyzer */}
-            <div className="glass-panel glass-panel-hover p-8 rounded-3xl transition-smooth space-y-4">
+            <div className="glass-panel p-8 rounded-3xl transition-smooth space-y-4">
               <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
                 <FileText className="h-6 w-6" />
               </div>
@@ -207,7 +222,7 @@ export default function LandingPage() {
             </div>
 
             {/* Mock Interviews */}
-            <div className="glass-panel glass-panel-hover p-8 rounded-3xl transition-smooth space-y-4">
+            <div className="glass-panel p-8 rounded-3xl transition-smooth space-y-4">
               <div className="h-12 w-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
                 <Video className="h-6 w-6" />
               </div>
@@ -218,7 +233,7 @@ export default function LandingPage() {
             </div>
 
             {/* Roadmaps */}
-            <div className="glass-panel glass-panel-hover p-8 rounded-3xl transition-smooth space-y-4">
+            <div className="glass-panel p-8 rounded-3xl transition-smooth space-y-4">
               <div className="h-12 w-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
                 <Map className="h-6 w-6" />
               </div>
@@ -229,7 +244,7 @@ export default function LandingPage() {
             </div>
 
             {/* Trackers */}
-            <div className="glass-panel glass-panel-hover p-8 rounded-3xl transition-smooth space-y-4">
+            <div className="glass-panel p-8 rounded-3xl transition-smooth space-y-4">
               <div className="h-12 w-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
                 <GitFork className="h-6 w-6" />
               </div>
@@ -240,7 +255,7 @@ export default function LandingPage() {
             </div>
 
             {/* Scores */}
-            <div className="glass-panel glass-panel-hover p-8 rounded-3xl transition-smooth space-y-4">
+            <div className="glass-panel p-8 rounded-3xl transition-smooth space-y-4">
               <div className="h-12 w-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
                 <Award className="h-6 w-6" />
               </div>

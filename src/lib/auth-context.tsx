@@ -13,6 +13,17 @@ export interface UserProfile {
   experienceYears?: number;
 }
 
+interface MockUserData {
+  id: string;
+  email: string;
+  password?: string;
+  firstName: string;
+  lastName: string;
+  currentJob?: string;
+  educationLevel?: string;
+  experienceYears?: number;
+}
+
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
@@ -75,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
 
     if (!isMockMode) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
           const { data: profileData } = await supabase
             .from('profiles')
@@ -107,14 +118,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       if (!isMockMode) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) return { success: false, error: error.message };
         return { success: true };
       } else {
         // Mock Login
         const mockUsersRaw = localStorage.getItem('careerdna_mock_users');
-        const mockUsers = mockUsersRaw ? JSON.parse(mockUsersRaw) : [];
-        const foundUser = mockUsers.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
+        const mockUsers = mockUsersRaw ? JSON.parse(mockUsersRaw) as MockUserData[] : [];
+        const foundUser = mockUsers.find((u: MockUserData) => u.email.toLowerCase() === email.toLowerCase());
 
         if (!foundUser || foundUser.password !== password) {
           return { success: false, error: 'Invalid email or password.' };

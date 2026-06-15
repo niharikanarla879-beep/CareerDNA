@@ -19,7 +19,11 @@ import {
   ShieldAlert,
   HelpCircle,
   Sparkles,
-  Briefcase
+  Briefcase,
+  Award,
+  MessageSquare,
+  TrendingUp,
+  Compass
 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -63,6 +67,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       disabled: false,
     },
     {
+      name: 'DNA Decoder',
+      href: '/dashboard/assessment',
+      icon: Compass,
+      disabled: false,
+    },
+    {
       name: 'My Profile',
       href: '/dashboard/profile',
       icon: UserIcon,
@@ -87,6 +97,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       disabled: false,
     },
     {
+      name: 'Projects & Certs',
+      href: '/dashboard/projects',
+      icon: Award,
+      disabled: false,
+    },
+    {
       name: 'Skill Gap Analyzer',
       href: '/dashboard/skill-gap',
       icon: Dna,
@@ -108,6 +124,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       name: 'AI Interview Coach',
       href: '/dashboard/interview-coach',
       icon: Video,
+      disabled: false,
+    },
+    {
+      name: 'AI Career Mentor',
+      href: '/dashboard/counselor',
+      icon: MessageSquare,
+      disabled: false,
+    },
+    {
+      name: 'DNA Score Engine',
+      href: '/dashboard/score-engine',
+      icon: TrendingUp,
       disabled: false,
     },
   ];
@@ -291,6 +319,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <h2 className="text-lg font-bold text-white tracking-tight capitalize">
               {pathname === '/dashboard' 
                 ? 'Dashboard Overview' 
+                : pathname === '/dashboard/assessment'
+                ? 'DNA Decoder Assessment'
+                : pathname === '/dashboard/projects'
+                ? 'Projects & Certs Tracker'
+                : pathname === '/dashboard/counselor'
+                ? 'AI Career Mentor'
+                : pathname === '/dashboard/score-engine'
+                ? 'DNA Score Engine'
                 : pathname === '/dashboard/resume-analyzer' 
                 ? 'ATS Resume Analyzer' 
                 : pathname === '/dashboard/resume-builder'

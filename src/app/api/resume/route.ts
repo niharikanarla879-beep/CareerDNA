@@ -54,9 +54,10 @@ export async function POST(req: NextRequest) {
   activeTimes.push(now);
   rateLimitMap.set(ip, activeTimes);
 
+  let file: File | null = null;
   try {
     const formData = await req.formData();
-    const file = formData.get('file') as File | null;
+    file = formData.get('file') as File | null;
 
     if (!file) {
       return NextResponse.json(
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('Error parsing resume file:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to parse resume file' },
+      { success: false, error: error.message || 'Failed to extract text from the uploaded document. Please check the file formatting.' },
       { status: 500 }
     );
   }
