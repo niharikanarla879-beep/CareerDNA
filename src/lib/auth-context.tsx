@@ -145,8 +145,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userProfile);
         return { success: true };
       }
-    } catch (err: any) {
-      return { success: false, error: err.message || 'An unexpected error occurred.' };
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return { success: false, error: errorMsg };
     }
   };
 
@@ -174,8 +175,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Mock Signup
         const mockUsersRaw = localStorage.getItem('careerdna_mock_users');
-        const mockUsers = mockUsersRaw ? JSON.parse(mockUsersRaw) : [];
-        const userExists = mockUsers.some((u: any) => u.email.toLowerCase() === email.toLowerCase());
+        const mockUsers = mockUsersRaw ? JSON.parse(mockUsersRaw) as MockUserData[] : [];
+        const userExists = mockUsers.some((u: MockUserData) => u.email.toLowerCase() === email.toLowerCase());
 
         if (userExists) {
           return { success: false, error: 'User with this email already exists.' };
@@ -209,8 +210,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userProfile);
         return { success: true };
       }
-    } catch (err: any) {
-      return { success: false, error: err.message || 'An unexpected error occurred.' };
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return { success: false, error: errorMsg };
     }
   };
 
@@ -224,8 +226,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setUser(null);
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'An unexpected error occurred.' };
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return { success: false, error: errorMsg };
     }
   };
 
@@ -240,16 +243,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Mock password reset
         const mockUsersRaw = localStorage.getItem('careerdna_mock_users');
-        const mockUsers = mockUsersRaw ? JSON.parse(mockUsersRaw) : [];
-        const exists = mockUsers.some((u: any) => u.email.toLowerCase() === email.toLowerCase());
+        const mockUsers = mockUsersRaw ? JSON.parse(mockUsersRaw) as MockUserData[] : [];
+        const exists = mockUsers.some((u: MockUserData) => u.email.toLowerCase() === email.toLowerCase());
 
         if (!exists) {
           return { success: false, error: 'No account registered with this email address.' };
         }
         return { success: true };
       }
-    } catch (err: any) {
-      return { success: false, error: err.message || 'An unexpected error occurred.' };
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return { success: false, error: errorMsg };
     }
   };
 
@@ -275,8 +279,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Mock Profile Update in Users Store
         const mockUsersRaw = localStorage.getItem('careerdna_mock_users');
-        const mockUsers = mockUsersRaw ? JSON.parse(mockUsersRaw) : [];
-        const updatedUsersList = mockUsers.map((u: any) => {
+        const mockUsers = mockUsersRaw ? JSON.parse(mockUsersRaw) as MockUserData[] : [];
+        const updatedUsersList = mockUsers.map((u: MockUserData) => {
           if (u.id === user.id) {
             return { ...u, ...data };
           }
@@ -289,8 +293,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(updatedUserProfile);
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'An unexpected error occurred.' };
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return { success: false, error: errorMsg };
     }
   };
 

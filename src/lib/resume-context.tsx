@@ -1,8 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from './auth-context';
-import { analyzeResume, ResumeAnalysisResult, roleKeywords } from './analyzer';
+import { ResumeAnalysisResult, roleKeywords } from './analyzer';
 
 export interface ResumeHistoryItem {
   id: string;
@@ -65,11 +65,14 @@ export interface DnaScores {
   interviewScore: number;
   projectScore: number;
   certBonus: number;
+  certsScore: number;
   roadmapProgressPercent: number;
   finalDnaScore: number;
   jobReadinessScore: number;
+  baselineJobReadinessScore: number;
   missingSkills: string[];
   estimatedReadyWeeks: number;
+  skillGapPenalty: number;
 }
 
 interface ResumeContextType {
@@ -147,7 +150,7 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   // Sync logic
-  const loadAllData = () => {
+  const loadAllData = useCallback(() => {
     if (!user) {
       setResumeHistory([]);
       setLatestResume(null);
@@ -212,10 +215,12 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    loadAllData();
+    const timer = setTimeout(() => {
+      loadAllData();
+    }, 0);
 
     const handleStorageChange = () => {
       loadAllData();
@@ -225,10 +230,11 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('careerdna_resume_sync', handleStorageChange);
 
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('careerdna_resume_sync', handleStorageChange);
     };
-  }, [user]);
+  }, [loadAllData]);
 
   // Actions
   const addResumeToHistory = (
@@ -629,47 +635,73 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
       projectScore = Math.round(sum / projects.length);
     }
 
-    // 5. Cert Bonus (Max 10)
+    // 5. Certifications Score (5 certs = 100%)
+    const certsScore = Math.min(100, certs.length * 20);
     const certBonus = Math.min(10, certs.length * 2);
 
-    // 6. Roadmap Progress Percent
-    let roadmapProgressPercent = 0;
-    let completedSteps = 0;
-    const activeKeywords = roleKeywords[targetCareerId] || roleKeywords['swe'];
-    let difficulty: 'foundational' | 'intermediate' | 'advanced' = 'foundational';
-    if (resumeScore >= 80) difficulty = 'advanced';
-    else if (resumeScore >= 50) difficulty = 'intermediate';
-
-    for (let i = 0; i < 3; i++) {
-      if (roadmapProgress[`${targetCareerId}_${difficulty}_${i}_course`]) completedSteps++;
-      if (roadmapProgress[`${targetCareerId}_${difficulty}_${i}_cert`]) completedSteps++;
-      if (roadmapProgress[`${targetCareerId}_${difficulty}_${i}_project`]) completedSteps++;
-    }
-    roadmapProgressPercent = Math.round((completedSteps / 9) * 100);
-
-    // 7. Weighted Composite DNA Score
-    // Assessment (20%), Resume (25%), Interview (20%), Projects (15%), Roadmap (10%), Certifications (10%)
-    const finalDnaScore = Math.min(100, Math.round(
-      (assessmentScore * 0.20) +
-      (resumeScore * 0.25) +
-      (interviewScore * 0.20) +
-      (projectScore * 0.15) +
-      (roadmapProgressPercent * 0.10) +
-      (certBonus * 10) // Since certBonus is max 10, certBonus * 10 * 0.10 = certBonus
-    ));
-
-    // 8. Job Readiness score calculations
+    // 6. Compute initial missing skills (before roadmap resolution) to assess active gaps
     const lowerResumeSkills = latestResume ? latestResume.result.detectedSkills?.map(s => s.toLowerCase()) || [] : [];
     const lowerProjectTech = projects.flatMap(p => p.tech.toLowerCase().split(',').map(s => s.trim()));
     const lowerAssessmentInterests = assessment ? assessment.interests.map(s => s.toLowerCase()) : [];
     
-    const combinedCompetencies = new Set([
+    const baseCompetencies = new Set([
       ...lowerResumeSkills,
       ...lowerProjectTech,
       ...lowerAssessmentInterests
     ]);
 
     const requiredKeywords = roleKeywords[targetCareerId] || roleKeywords['swe'];
+    const originallyMissing: string[] = [];
+
+    requiredKeywords.forEach(kw => {
+      const kwName = kw.name.toLowerCase();
+      let match = baseCompetencies.has(kwName);
+      if (!match) {
+        for (const syn of kw.synonyms) {
+          if (baseCompetencies.has(syn.toLowerCase())) {
+            match = true;
+            break;
+          }
+        }
+      }
+      if (!match) {
+        originallyMissing.push(kw.name);
+      }
+    });
+
+    // 7. Dynamic Roadmap Progress & Completed Skills override
+    let completedMilestoneItems = 0;
+    const totalMilestoneItems = originallyMissing.length * 3;
+    const resolvedSkills: string[] = [];
+
+    originallyMissing.forEach(skillName => {
+      const isCourseDone = roadmapProgress[`${skillName}_course`] === true;
+      const isCertDone = roadmapProgress[`${skillName}_cert`] === true;
+      const isProjectDone = roadmapProgress[`${skillName}_project`] === true;
+
+      let doneCount = 0;
+      if (isCourseDone) doneCount++;
+      if (isCertDone) doneCount++;
+      if (isProjectDone) doneCount++;
+
+      completedMilestoneItems += doneCount;
+
+      // Resolve the gap if they completed at least 2 out of 3 stages
+      if (doneCount >= 2) {
+        resolvedSkills.push(skillName.toLowerCase());
+      }
+    });
+
+    const roadmapProgressPercent = totalMilestoneItems > 0
+      ? Math.round((completedMilestoneItems / totalMilestoneItems) * 100)
+      : 100;
+
+    // 8. Re-evaluate competencies & missing skills with completed roadmaps
+    const combinedCompetencies = new Set([
+      ...baseCompetencies,
+      ...resolvedSkills
+    ]);
+
     let matches = 0;
     const missing: string[] = [];
 
@@ -697,17 +729,43 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
 
     const estimatedReadyWeeks = Math.ceil((100 - jobReadinessScore) / 10) * 2;
 
+    // 9. Weighted DNA Score Calculation
+    // Assessment (15%), Resume (20%), Interview (20%), Projects (15%), Roadmap (15%), Certifications (15%)
+    const compositeScore = Math.round(
+      (assessmentScore * 0.15) +
+      (resumeScore * 0.20) +
+      (interviewScore * 0.20) +
+      (projectScore * 0.15) +
+      (roadmapProgressPercent * 0.15) +
+      (certsScore * 0.15)
+    );
+
+    // Apply skill gaps penalty: -2 points per missing skill
+    const skillGapPenalty = missing.length * 2;
+    const finalDnaScore = Math.max(0, Math.min(100, compositeScore - skillGapPenalty));
+
+    const baselineMatches = originallyMissing.length === requiredKeywords.length
+      ? 0
+      : requiredKeywords.length - originallyMissing.length;
+
+    const baselineJobReadinessScore = requiredKeywords.length > 0
+      ? Math.round((baselineMatches / requiredKeywords.length) * 100)
+      : 50;
+
     return {
       assessmentScore,
       resumeScore,
       interviewScore,
       projectScore,
       certBonus,
+      certsScore,
       roadmapProgressPercent,
       finalDnaScore,
       jobReadinessScore,
+      baselineJobReadinessScore,
       missingSkills: missing,
-      estimatedReadyWeeks
+      estimatedReadyWeeks,
+      skillGapPenalty
     };
   }, [assessment, latestResume, interviewHistory, projects, certs, roadmapProgress, targetCareerId]);
 

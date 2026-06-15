@@ -7,7 +7,6 @@ import { useResume } from '@/lib/resume-context';
 import { targetCareers } from '@/lib/constants';
 import {
   ArrowLeft,
-  Sparkles,
   Loader2,
   Send,
   MessageSquare,
@@ -25,12 +24,121 @@ interface ChatMessage {
   timestamp: string;
 }
 
+interface ProfileContextData {
+  profile?: {
+    firstName?: string;
+    lastName?: string;
+    currentJob?: string;
+    educationLevel?: string;
+    experienceYears?: string | number;
+  };
+  assessment?: unknown;
+  resumeScore?: number;
+  missingSkills?: string[];
+  roadmapProgressPercent?: number;
+  projectsCount?: number;
+  certsCount?: number;
+  interviewScore?: number;
+  targetRole?: string;
+}
+
+function generateFallbackCounselorResponse(messages: ChatMessage[], context: ProfileContextData): string {
+  const lastUserMsg = messages[messages.length - 1]?.text?.toLowerCase() || '';
+  const {
+    profile,
+    resumeScore,
+    missingSkills = [],
+    roadmapProgressPercent = 0,
+    projectsCount = 0,
+    certsCount = 0,
+    interviewScore,
+    targetRole = 'Software Engineer'
+  } = context || {};
+
+  const name = profile?.firstName || 'Candidate';
+  const role = targetRole;
+
+  if (lastUserMsg.includes('ready') || lastUserMsg.includes('job readiness') || lastUserMsg.includes('job-ready') || lastUserMsg.includes('readiness')) {
+    const remaining = missingSkills.length;
+    return `Hello **${name}**! Let's check your job readiness for a **${role}** role.
+    
+Currently:
+- Your learning roadmap is **${roadmapProgressPercent}%** complete.
+- You have **${remaining}** missing skill gap(s) remaining: **${missingSkills.join(', ') || 'None'}**.
+- You have completed **${projectsCount}** projects and **${certsCount}** certifications.
+    
+To become fully competitive, I recommend finishing your remaining roadmap milestones to resolve outstanding skill gaps. This will immediately improve your Job Readiness score!`;
+  }
+
+  if (lastUserMsg.includes('learn') || lastUserMsg.includes('skill') || lastUserMsg.includes('gap') || lastUserMsg.includes('roadmap') || lastUserMsg.includes('milestone')) {
+    if (missingSkills.length > 0) {
+      const primarySkill = missingSkills[0];
+      return `Based on your profile gaps for a **${role}** role, your highest priority skill to learn next is **${primarySkill}**.
+      
+I suggest opening the **${primarySkill}** Learning Roadmap and completing the recommended courses. Once you finish the learning modules and mark them complete:
+1. Your skill gap for **${primarySkill}** will be resolved.
+2. Your Job Readiness score will increase.
+3. Your composite DNA score will improve as the skill gap penalty is removed.`;
+    } else {
+      return `Excellent work, **${name}**! You have resolved all critical skill gaps for your target role. You should focus on polishing your resume, mock interview practice, or adding more advanced certifications.`;
+    }
+  }
+
+  if (lastUserMsg.includes('project') || lastUserMsg.includes('portfolio') || lastUserMsg.includes('github')) {
+    const skillList = missingSkills.length > 0 ? missingSkills : ['React', 'Node.js', 'System Design'];
+    return `Building portfolio projects is key to proving your hands-on capability, **${name}**.
+    
+You have **${projectsCount}** project(s) listed. To target the **${role}** role, try building an interactive full-stack project utilizing **${skillList.slice(0, 2).join(' or ')}**.
+    
+Ensure your projects:
+- Have a clean README with architecture diagrams.
+- Are hosted live on Vercel, Netlify, or AWS.
+- Highlight performance metrics (e.g. 'reduced load time by 30%').`;
+  }
+
+  if (lastUserMsg.includes('resume') || lastUserMsg.includes('ats') || lastUserMsg.includes('score')) {
+    return `Your resume ATS audit score is **${resumeScore || 0}/100**.
+    
+To raise this score:
+1. Integrate missing keywords like **${missingSkills.slice(0, 3).join(', ') || 'relevant industry stacks'}** in your experience section.
+2. Rewrite job descriptions using strong action verbs (e.g. *engineered*, *implemented*) followed by quantified achievements.
+3. Ensure clean formatting using one of our resume builder templates (Classic, Minimal, or Glass).`;
+  }
+
+  if (lastUserMsg.includes('cert') || lastUserMsg.includes('credential') || lastUserMsg.includes('degree')) {
+    return `Credentials and certifications help validate your skillset. You currently have **${certsCount}** certification(s).
+    
+For a **${role}** career path, targeting certifications like AWS Certified Cloud Practitioner, Microsoft Certified, or specialized developer certificates will strengthen your profile.`;
+  }
+
+  if (lastUserMsg.includes('interview') || lastUserMsg.includes('coach') || lastUserMsg.includes('practice')) {
+    return `Preparing for interviews is critical, **${name}**.
+    
+Your current mock interview score is **${interviewScore ? `${interviewScore}/100` : 'not recorded yet'}**.
+    
+Here is a checklist for success:
+- Use the **STAR method** (Situation, Task, Action, Result) for all technical and situational scenarios.
+- Speak clearly and aim to minimize filler words.
+- Head to our **AI Interview Coach** page to practice real-time speech-to-text behavioral questions!`;
+  }
+
+  return `Hello **${name}**! As your CareerDNA AI Counselor, I'm here to support your journey to becoming a job-ready **${role}**.
+  
+Currently, your composite DNA score is **${resumeScore ? resumeScore : 50}/100**.
+What would you like to focus on next? We can dive into:
+- **Skill gaps** and roadmap milestones (Missing: **${missingSkills.join(', ') || 'None'}**)
+- **Projects** and portfolio development
+- **Resume optimization** and ATS scores
+- **Mock interview prep** and speech feedback`;
+}
+
 export default function CounselorPage() {
   const { user } = useAuth();
-  const { latestResume, targetCareerId, projects, certs, scores, assessment } = useResume();
+  const { targetCareerId, projects, certs, scores, assessment } = useResume();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -43,95 +151,33 @@ export default function CounselorPage() {
     if (!user) return;
     
     const isDemo = user.id === 'demo-h2s-candidate';
-    if (isDemo) {
-      setMessages([
-        {
-          sender: 'ai',
-          text: `Hello Demo Candidate! I am your AI Career Mentor. I have evaluated your career target as a **Software Engineer**.\n\nHere is my quick diagnostics brief of your profile:\n- **Composite DNA Score**: ${scores.finalDnaScore}/100\n- **Job Readiness Meter**: ${scores.jobReadinessScore}%\n- **Resume ATS Auditor Score**: ${scores.resumeScore}/100\n- **Completed Certifications**: ${certs.length}\n- **Mock Projects strength**: ${projects.length} loaded (Avg strength: ${scores.projectScore}%)\n\nWhat would you like to discuss today? You can select any prompt below for detailed guidance.`,
-          timestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString()
-        }
-      ]);
-    } else {
-      setMessages([
-        {
-          sender: 'ai',
-          text: `Hello ${user.firstName}! I am your CareerDNA AI Counselor. I analyze your assessments, resumes, portfolio projects, and interview scores to map out your readiness.\n\nYour active career target is currently set to: **${activeRoleName}**.\n\nFeel free to ask me anything about your skill gaps, portfolio projects, certifications, or career transition strategy!`,
-          timestamp: new Date().toISOString()
-        }
-      ]);
-    }
+    const timer = setTimeout(() => {
+      if (isDemo) {
+        setMessages([
+          {
+            sender: 'ai',
+            text: `Hello Demo Candidate! I am your AI Career Mentor. I have evaluated your career target as a **Software Engineer**.\n\nHere is my quick diagnostics brief of your profile:\n- **Composite DNA Score**: ${scores.finalDnaScore}/100\n- **Job Readiness Meter**: ${scores.jobReadinessScore}%\n- **Resume ATS Auditor Score**: ${scores.resumeScore}/100\n- **Completed Certifications**: ${certs.length}\n- **Mock Projects strength**: ${projects.length} loaded (Avg strength: ${scores.projectScore}%)\n\nWhat would you like to discuss today? You can select any prompt below for detailed guidance.`,
+            timestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString()
+          }
+        ]);
+      } else {
+        setMessages([
+          {
+            sender: 'ai',
+            text: `Hello ${user.firstName}! I am your CareerDNA AI Counselor. I analyze your assessments, resumes, portfolio projects, and interview scores to map out your readiness.\n\nYour active career target is currently set to: **${activeRoleName}**.\n\nFeel free to ask me anything about your skill gaps, portfolio projects, certifications, or career transition strategy!`,
+            timestamp: new Date().toISOString()
+          }
+        ]);
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [user, activeRoleName, scores, certs.length, projects.length]);
 
   // Scroll to bottom helper
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Local AI counselor response engine
-  const generateCounselorResponse = (query: string): string => {
-    const q = query.toLowerCase();
-    
-    // Check if assessment completed
-    const assessmentTaken = assessment?.taken;
-
-    // 1. "am i job ready?" / "readiness"
-    if (q.includes('job ready') || q.includes('readiness') || q.includes('am i ready')) {
-      if (scores.jobReadinessScore >= 85) {
-        return `Your current Job Readiness is at an exceptional **${scores.jobReadinessScore}%**. You possess the core frameworks, methodologies, and online credentials requested for **${activeRoleName}**.\n\n**My Recommendation:**\n1. Target senior listings or high-growth startups.\n2. Keep your GitHub links fresh.\n3. Practice advanced mock interview questions in the coach to solidify your communication logs.`;
-      }
-      
-      const missingList = scores.missingSkills.slice(0, 3).join(', ');
-      return `Your Job Readiness for a **${activeRoleName}** is currently **${scores.jobReadinessScore}%**. I estimate you are approximately **${scores.estimatedReadyWeeks} weeks** away from becoming highly competitive.\n\n**Key Competency Gaps:**\n- You are currently missing: *${missingList || 'foundational tools'}*.\n\n**Action Blueprint:**\n1. Go to the **Skill Gap Analyzer** and review learning blueprints for these skills.\n2. Add at least one project containing these tech stacks to boost your portfolio score by +15 points.`;
-    }
-
-    // 2. "what should i learn next?" / "learn next" / "what skills am i missing?"
-    if (q.includes('learn next') || q.includes('what to learn') || q.includes('skills am i missing') || q.includes('missing skills')) {
-      if (scores.missingSkills.length === 0) {
-        return `Fantastic! You have 100% required skills coverage matching our target matrix for a **${activeRoleName}**!\n\n**Next Best Step:** Focus on mock interviews, or certifications like AWS Certified Developer to add score bonuses, or try pivoting target profiles to expand your horizontal knowledge.`;
-      }
-      const nextSkill = scores.missingSkills[0];
-      const whyItMatters = nextSkill === 'React' ? 'It is the primary frontend framework powering modern user interfaces and components.' :
-                          nextSkill === 'Node.js' ? 'It is critical for server-side REST API development and back-end integration scaling.' :
-                          nextSkill === 'AWS' ? 'Cloud architecture knowledge is expected for automated server deployments.' :
-                          nextSkill === 'Docker' ? 'Container infrastructure allows microservices to run consistently on server nodes.' :
-                          `It is a key framework requested in 80%+ of listings targeting ${activeRoleName}.`;
-
-      return `The next skill you should prioritize learning is: **${nextSkill}**.\n\n**Why it is important:** ${whyItMatters}\n\n**Expected Impact:** Completing this skill gap and logging a project using it will increase your **Job Readiness Meter by +${Math.round(100 / (scores.missingSkills.length + 2))}%**.\n\n**Where to start:** Go to the **Learning Roadmaps** page. I have loaded curated tutorials, books, and beginner/intermediate projects for *${nextSkill}*!`;
-    }
-
-    // 3. "what projects should i build?" / "what project" / "projects"
-    if (q.includes('project') || q.includes('portfolio') || q.includes('projects should i build')) {
-      const nextSkill = scores.missingSkills[0] || 'React/Node.js';
-      const projSuggestions = nextSkill === 'React' ? 'SaaS Analytics dashboard with dynamic charts and widgets.' :
-                              nextSkill === 'Node.js' ? 'A RESTful API supporting JWT authorization and rate limits.' :
-                              nextSkill === 'AWS' || nextSkill === 'Docker' ? 'A containerized application deployed behind a reverse proxy.' :
-                              nextSkill === 'SQL' ? 'A database indexing dashboard querying millions of rows.' :
-                              `A web application integrating ${nextSkill} functions.`;
-
-      return `Based on your target role (**${activeRoleName}**), I suggest building: **"${projSuggestions}"**.\n\n**Action Checklist:**\n1. Create a public repository on GitHub.\n2. Write a detailed README file describing system diagrams and setup steps.\n3. Add it inside the **Projects Tracker** along with the Repository link and Live deployment URL. This will increase your composite **DNA Portfolio Score to ${Math.min(100, scores.projectScore + 15)}%**.`;
-    }
-
-    // 4. "which certification" / "certification" / "cert"
-    if (q.includes('certification') || q.includes('cert') || q.includes('credential')) {
-      const suggestedCert = activeRoleName.includes('Software') || activeRoleName.includes('Backend') 
-        ? 'AWS Certified Solutions Architect - Associate' 
-        : activeRoleName.includes('Data') 
-        ? 'Microsoft Certified: Power BI Data Analyst' 
-        : activeRoleName.includes('UX') 
-        ? 'Google UX Design Professional Certificate' 
-        : 'Project Management Professional (PMP)';
-
-      return `For a **${activeRoleName}**, I highly recommend targeting the: **"${suggestedCert}"**.\n\n**Why this certification?** It validates hands-on proficiency and adds weight to resume screening bots.\n\n**Score Impact:** Logging this credential inside the **Projects & Certs Tracker** will increase your consolidated score by **+2%** (Cert Bonus ledger).`;
-    }
-
-    // 5. General fallback response
-    return `Interesting question. To help you succeed as a **${activeRoleName}**, I recommend reviewing:
-1. **ATS Resume Auditor**: Scan your resume text to verify formatting.
-2. **Skill Gap Analyzer**: Uncover missing technologies.
-3. **AI Interview Coach**: Practice dynamic HR/Technical follow-up sessions.
-
-Let me know if you would like me to detail one of these steps!`;
-  };
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || inputText;
@@ -151,6 +197,24 @@ Let me know if you would like me to detail one of these steps!`;
     // Trigger typing simulation
     setIsTyping(true);
 
+    const context = {
+      profile: {
+        firstName: user?.firstName,
+        lastName: user?.lastName,
+        currentJob: user?.currentJob,
+        educationLevel: user?.educationLevel,
+        experienceYears: user?.experienceYears
+      },
+      assessment,
+      resumeScore: scores.resumeScore,
+      missingSkills: scores.missingSkills,
+      roadmapProgressPercent: scores.roadmapProgressPercent,
+      projectsCount: projects.length,
+      certsCount: certs.length,
+      interviewScore: scores.interviewScore,
+      targetRole: activeRoleName
+    };
+
     try {
       const response = await fetch('/api/ai', {
         method: 'POST',
@@ -161,23 +225,7 @@ Let me know if you would like me to detail one of these steps!`;
             sender: m.sender,
             text: m.text
           })),
-          context: {
-            profile: {
-              firstName: user?.firstName,
-              lastName: user?.lastName,
-              currentJob: user?.currentJob,
-              educationLevel: user?.educationLevel,
-              experienceYears: user?.experienceYears
-            },
-            assessment,
-            resumeScore: scores.resumeScore,
-            missingSkills: scores.missingSkills,
-            roadmapProgressPercent: scores.roadmapProgressPercent,
-            projectsCount: projects.length,
-            certsCount: certs.length,
-            interviewScore: scores.interviewScore,
-            targetRole: activeRoleName
-          }
+          context
         })
       });
 
@@ -191,11 +239,20 @@ Let me know if you would like me to detail one of these steps!`;
         text: data.text,
         timestamp: new Date().toISOString()
       }]);
-    } catch (e: any) {
-      console.error(e);
+
+      if (data.isOfflineMode) {
+        setIsOffline(true);
+      } else {
+        setIsOffline(false);
+      }
+    } catch (e) {
+      console.warn('AI chat failed, applying client-side fallback:', e);
+      setIsOffline(true);
+      
+      const fallbackText = generateFallbackCounselorResponse(updatedMessages, context);
       setMessages(prev => [...prev, {
         sender: 'ai',
-        text: `**System Notice**: ${e.message || 'Error communicating with AI counselor. Please verify that GEMINI_API_KEY is defined in your .env.local file and restart the development server.'}`,
+        text: fallbackText,
         timestamp: new Date().toISOString()
       }]);
     } finally {
@@ -216,6 +273,12 @@ Let me know if you would like me to detail one of these steps!`;
           </Link>
           <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
             <Bot className="h-6 w-6 text-indigo-400" /> AI Career Mentor
+            {isOffline && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400 animate-pulse shadow-sm shadow-amber-500/5">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
+                Offline AI Mode
+              </span>
+            )}
           </h1>
           <p className="text-xs text-slate-400 mt-1">
             Get personalized strategy recommendations based on your CareerDNA profile scores, resume keyword analysis, and portfolio gaps.

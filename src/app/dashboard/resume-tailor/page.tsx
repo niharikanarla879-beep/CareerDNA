@@ -57,6 +57,24 @@ function extractKeywordsFromJd(jdText: string): string[] {
   return Array.from(found);
 }
 
+interface TailorHistoryItem {
+  id: string;
+  timestamp: string;
+  jobTitle: string;
+  matchPercent: number;
+  roleFitConfidence: number;
+  optimizedText: string;
+  matchedKeywords: string[];
+  missingKeywords: string[];
+  scoreBreakdown: {
+    skills: number;
+    experience: number;
+    projects: number;
+    certifications: number;
+    education: number;
+  };
+}
+
 export default function ResumeTailor() {
   const { user } = useAuth();
   
@@ -64,7 +82,7 @@ export default function ResumeTailor() {
   const [resumeText, setResumeText] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [tailoringPhase, setTailoringPhase] = useState<'input' | 'analyzing' | 'results'>('input');
-  const [tailorHistory, setTailorHistory] = useState<any[]>([]);
+  const [tailorHistory, setTailorHistory] = useState<TailorHistoryItem[]>([]);
   
   // Results states
   const [matchPercent, setMatchPercent] = useState(0);
@@ -80,31 +98,126 @@ export default function ResumeTailor() {
     education: number;
   }>({ skills: 0, experience: 0, projects: 0, certifications: 0, education: 0 });
 
-  const { latestResume, resumeHistory, targetCareerId } = useResume();
+  const { latestResume, resumeHistory, targetCareerId, projects, certs } = useResume();
 
   // Load history to populate options
   useEffect(() => {
     if (resumeHistory.length > 0 && !resumeText) {
-      setResumeText(resumeHistory[0].text);
+      const text = resumeHistory[0].text;
+      setTimeout(() => setResumeText(text), 0);
     }
   }, [resumeHistory, resumeText]);
 
   // Load tailor history safely
   useEffect(() => {
     if (user) {
-      try {
-        const historyRaw = localStorage.getItem(`careerdna_tailor_history_${user.id}`);
-        if (historyRaw) {
-          const parsed = JSON.parse(historyRaw);
-          if (Array.isArray(parsed)) {
-            setTailorHistory(parsed);
+      setTimeout(() => {
+        try {
+          const historyRaw = localStorage.getItem(`careerdna_tailor_history_${user.id}`);
+          if (historyRaw) {
+            const parsed = JSON.parse(historyRaw);
+            if (Array.isArray(parsed)) {
+              setTailorHistory(parsed as TailorHistoryItem[]);
+            }
           }
+        } catch (e) {
+          console.error('Error loading tailor history safely:', e);
         }
-      } catch (e) {
-        console.error('Error loading tailor history safely:', e);
-      }
+      }, 0);
     }
   }, [user]);
+
+  // Keep scores in sync with projects and certs changes instantly
+  useEffect(() => {
+    if (tailoringPhase === 'results') {
+      const projScore = projects.length > 0
+        ? Math.round(projects.reduce((acc, curr) => acc + curr.strengthScore, 0) / projects.length)
+        : 0;
+      
+      const certScore = Math.min(100, certs.length * 20);
+      
+      setTimeout(() => {
+        setScoreBreakdown(prev => {
+          // Only trigger updates if scores actually changed to avoid infinite loop
+          if (prev.projects === projScore && prev.certifications === certScore) {
+            return prev;
+          }
+
+          const updatedBreakdown = {
+            ...prev,
+            projects: projScore,
+            certifications: certScore
+          };
+          
+          // Recalculate final match percent based on the same weights
+          // Weights: skills (50%), projects (20%), experience (15%), certifications (7%), education (8%)
+          const baseScore = (updatedBreakdown.skills * 0.50) +
+                            (updatedBreakdown.projects * 0.20) +
+                            (updatedBreakdown.experience * 0.15) +
+                            (updatedBreakdown.certifications * 0.07) +
+                            (updatedBreakdown.education * 0.08);
+                            
+          // Calculate penalty dynamically
+          const resumeLower = resumeText.toLowerCase();
+          const allConfigs = Object.values(roleKeywords).flat();
+          
+          let criticalSkills: string[] = [];
+          const currentRole = targetCareerId || 'swe';
+          if (currentRole === 'ai' || currentRole === 'ml') {
+            criticalSkills = ['TensorFlow', 'PyTorch', 'Scikit-Learn'];
+          } else if (['swe', 'frontend', 'backend', 'fullstack'].includes(currentRole)) {
+            criticalSkills = ['React', 'Node.js', 'APIs', 'Git'];
+          } else if (currentRole === 'da') {
+            criticalSkills = ['SQL', 'Excel', 'Tableau', 'Power BI'];
+          }
+
+          let criticalMatchedCount = 0;
+          criticalSkills.forEach(skill => {
+            let skillFound = false;
+            if (matchWordOrPhrase(resumeLower, skill)) {
+              skillFound = true;
+            } else {
+              const config = allConfigs.find(c => c.name.toLowerCase() === skill.toLowerCase());
+              if (config) {
+                for (const syn of config.synonyms) {
+                  if (matchWordOrPhrase(resumeLower, syn)) {
+                    skillFound = true;
+                    break;
+                  }
+                }
+              }
+            }
+            if (skillFound) {
+              criticalMatchedCount++;
+            }
+          });
+
+          const criticalMissingCount = criticalSkills.length - criticalMatchedCount;
+          const penalty = criticalMissingCount * 12;
+          
+          const finalMatchPercent = Math.max(0, Math.min(100, Math.round(baseScore - penalty)));
+          setMatchPercent(finalMatchPercent);
+          
+          // Recalculate role fit confidence
+          let confidence = 0;
+          const targetKeywordsCount = matchedKeywords.length + missingKeywords.length;
+          const keywordRate = targetKeywordsCount > 0 ? (matchedKeywords.length / targetKeywordsCount) : 0;
+          const expRate = updatedBreakdown.experience / 100;
+          
+          if (criticalSkills.length > 0) {
+            const criticalRate = criticalMatchedCount / criticalSkills.length;
+            confidence = Math.round((criticalRate * 60) + (keywordRate * 25) + (expRate * 15));
+          } else {
+            confidence = Math.round((keywordRate * 70) + (expRate * 30));
+          }
+          confidence = Math.max(0, Math.min(100, confidence));
+          setRoleFitConfidence(confidence);
+          
+          return updatedBreakdown;
+        });
+      }, 0);
+    }
+  }, [projects, certs, tailoringPhase, resumeText, targetCareerId, matchedKeywords, missingKeywords]);
 
   const handleSelectHistoryResume = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selected = resumeHistory.find(item => item.id === e.target.value);
@@ -185,31 +298,14 @@ export default function ResumeTailor() {
       experienceScore = Math.min(100, experienceScore);
 
       // 3. Projects score (20% weight)
-      let projectsScore = 15;
-      const hasProjKeywords = /project|projects|portfolio|personal project|case studies/i.test(resumeText);
-      if (hasProjKeywords) projectsScore += 45;
-      
-      const projVerbs = ['built', 'developed', 'designed', 'implemented', 'created'];
-      let projVerbCount = 0;
-      projVerbs.forEach(v => {
-        if (new RegExp('\\b' + v + '\\b', 'i').test(resumeLower)) {
-          projVerbCount++;
-        }
-      });
-      projectsScore += Math.min(40, projVerbCount * 10);
-      projectsScore = Math.min(100, projectsScore);
+      let projectsScore = 0;
+      if (projects.length > 0) {
+        const sum = projects.reduce((acc, curr) => acc + curr.strengthScore, 0);
+        projectsScore = Math.round(sum / projects.length);
+      }
 
       // 4. Certifications score (7% weight)
-      let certificationsScore = 20;
-      const hasCert = /certification|certifications|certified|license|pmp|aws certified|scrummaster|udemy|coursera/i.test(resumeText);
-      if (hasCert) {
-        certificationsScore = 100;
-      } else {
-        const hasCourses = /course|training|bootcamp/i.test(resumeText);
-        if (hasCourses) {
-          certificationsScore = 60;
-        }
-      }
+      const certificationsScore = Math.min(100, certs.length * 20);
 
       // 5. Education score (8% weight)
       let educationScore = 20;
@@ -308,11 +404,11 @@ export default function ResumeTailor() {
 
       // Save tailored history item safely
       if (user) {
-        let tailorList = [];
+        let tailorList: TailorHistoryItem[] = [];
         try {
           const historyRaw = localStorage.getItem(`careerdna_tailor_history_${user.id}`);
           if (historyRaw) {
-            const parsed = JSON.parse(historyRaw);
+            const parsed = JSON.parse(historyRaw) as TailorHistoryItem[];
             if (Array.isArray(parsed)) {
               tailorList = parsed;
             }

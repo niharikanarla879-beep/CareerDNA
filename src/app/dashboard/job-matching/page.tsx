@@ -12,10 +12,7 @@ import {
   Sparkles, 
   CheckCircle2, 
   AlertTriangle, 
-  ChevronRight,
-  TrendingUp,
-  UserCheck,
-  Award
+  ChevronRight
 } from 'lucide-react';
 
 interface MatchedJob {
@@ -33,7 +30,7 @@ interface MatchedJob {
 export default function JobMatching() {
   const { user } = useAuth();
   
-  const { latestResume, targetCareerId, setTargetCareerId } = useResume();
+  const { latestResume, targetCareerId, setTargetCareerId, projects, assessment } = useResume();
   const [sortedListings, setSortedListings] = useState<(MatchedJob & { compatibilityScore: number; compatibilityReason: string })[]>([]);
   const [selectedJob, setSelectedJob] = useState<(MatchedJob & { compatibilityScore: number; compatibilityReason: string }) | null>(null);
   const [customJd, setCustomJd] = useState('');
@@ -49,8 +46,27 @@ export default function JobMatching() {
 
   const targetCareer = targetCareerId || 'swe';
   const currentSkills = useMemo(() => {
-    return latestResume ? (latestResume.result.detectedSkills || []) : [];
-  }, [latestResume]);
+    const originalSkills = new Set<string>();
+    
+    if (latestResume?.result.detectedSkills) {
+      latestResume.result.detectedSkills.forEach(s => originalSkills.add(s));
+    }
+    
+    if (projects) {
+      projects.forEach(p => {
+        p.tech.split(',').forEach(t => {
+          const trimmed = t.trim();
+          if (trimmed) originalSkills.add(trimmed);
+        });
+      });
+    }
+    
+    if (assessment?.interests) {
+      assessment.interests.forEach(s => originalSkills.add(s));
+    }
+    
+    return Array.from(originalSkills);
+  }, [latestResume, projects, assessment]);
 
   // Compute sorted listings based on current skills and target career
   useEffect(() => {
@@ -140,15 +156,18 @@ export default function JobMatching() {
 
     // Calculate match score
     const computedMatch = Math.round(skillRatio * 100);
-    setMatchScore(computedMatch);
 
     // Calculate career fit score (incorporate profile align, RIASEC overlay)
     const computedFit = Math.round(75 + (skillRatio * 15) + (Math.random() * 10)); // Base fit starts high since it matches target role
-    setFitScore(Math.min(100, computedFit));
 
     // Calculate readiness score
     const computedReadiness = Math.round(15 + (skillRatio * 80));
-    setReadinessScore(Math.min(100, computedReadiness));
+
+    setTimeout(() => {
+      setMatchScore(computedMatch);
+      setFitScore(Math.min(100, computedFit));
+      setReadinessScore(Math.min(100, computedReadiness));
+    }, 0);
   }, [selectedJob, currentSkills]);
 
   const runCustomJobMatch = () => {

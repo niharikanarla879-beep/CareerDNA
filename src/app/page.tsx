@@ -12,10 +12,7 @@ import {
   Sparkles, 
   Award, 
   GitFork, 
-  ArrowRight,
-  Shield,
-  Activity,
-  CheckCircle2
+  ArrowRight
 } from 'lucide-react';
 
 export default function LandingPage() {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useResume } from '@/lib/resume-context';
@@ -8,17 +8,16 @@ import { targetCareers } from '@/lib/constants';
 import { 
   ArrowLeft, 
   Map, 
-  Sparkles, 
-  CheckCircle2, 
   Award, 
   Briefcase, 
   BookOpen, 
-  Calendar, 
   Check, 
   Clock, 
-  TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  CheckCircle
 } from 'lucide-react';
+import { generatePathwayForSkill } from '@/lib/skill-resources';
+import { roleKeywords } from '@/lib/analyzer';
 
 interface RoadmapMilestone {
   phase: string;
@@ -31,6 +30,15 @@ interface RoadmapMilestone {
   goals: string[];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface RoadmapHistoryItem {
+  timestamp: string;
+  roleId: string;
+  difficulty: 'foundational' | 'intermediate' | 'advanced';
+  milestones: RoadmapMilestone[];
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const roadmapTemplates: Record<string, Record<'foundational' | 'intermediate' | 'advanced', RoadmapMilestone[]>> = {
   swe: {
     foundational: [
@@ -1017,54 +1025,85 @@ const roadmapTemplates: Record<string, Record<'foundational' | 'intermediate' | 
 
 export default function Roadmaps() {
   const { user } = useAuth();
-  const { latestResume, targetCareerId, setTargetCareerId, roadmapProgress, toggleRoadmapStep } = useResume();
+  const { latestResume, targetCareerId, setTargetCareerId, roadmapProgress, toggleRoadmapStep, scores, projects, assessment } = useResume();
   const completedSteps = roadmapProgress;
   const toggleStep = toggleRoadmapStep;
-  const [activeRoadmap, setActiveRoadmap] = useState<RoadmapMilestone[]>([]);
 
   const targetCareer = targetCareerId || 'swe';
-  const resumeScore = latestResume ? latestResume.result.score : 0;
+  // const resumeScore = latestResume ? latestResume.result.score : 0;
 
-  const roadmapDifficulty = useMemo(() => {
-    if (resumeScore >= 80) return 'advanced';
-    if (resumeScore >= 50) return 'intermediate';
-    return 'foundational';
-  }, [resumeScore]);
+  const targetCareerKeywords = useMemo(() => {
+    return roleKeywords[targetCareer] || roleKeywords['swe'];
+  }, [targetCareer]);
 
-  // Regenerate/load roadmap milestones whenever targetCareer or difficulty changes
-  useEffect(() => {
-    const templates = roadmapTemplates[targetCareer] || roadmapTemplates['swe'];
-    const activeTemplates = templates[roadmapDifficulty];
+  // Compute originally missing skills (before roadmap completion override)
+  const originallyMissingSkills = useMemo(() => {
+    if (!latestResume) return [];
+    
+    const lowerResumeSkills = latestResume.result.detectedSkills?.map(s => s.toLowerCase()) || [];
+    const lowerProjectTech = projects.flatMap(p => p.tech.toLowerCase().split(',').map(s => s.trim()));
+    const lowerAssessmentInterests = assessment ? assessment.interests.map(s => s.toLowerCase()) : [];
+    
+    const baseCompetencies = new Set([
+      ...lowerResumeSkills,
+      ...lowerProjectTech,
+      ...lowerAssessmentInterests
+    ]);
 
-    setActiveRoadmap(activeTemplates);
-
-    // Save active roadmap overview safely under history list
-    if (user) {
-      try {
-        const historyRaw = localStorage.getItem(`careerdna_roadmaps_history_${user.id}`);
-        let history = [];
-        if (historyRaw) {
-          const parsed = JSON.parse(historyRaw);
-          if (Array.isArray(parsed)) {
-            history = parsed;
+    const missing: string[] = [];
+    targetCareerKeywords.forEach(kw => {
+      const kwName = kw.name.toLowerCase();
+      let match = baseCompetencies.has(kwName);
+      if (!match) {
+        for (const syn of kw.synonyms) {
+          if (baseCompetencies.has(syn.toLowerCase())) {
+            match = true;
+            break;
           }
         }
-        const isDuplicate = history.some((item: any) => item.roleId === targetCareer && item.difficulty === roadmapDifficulty);
-        
-        if (!isDuplicate) {
-          const newItem = {
-            timestamp: new Date().toISOString(),
-            roleId: targetCareer,
-            difficulty: roadmapDifficulty,
-            milestones: activeTemplates
-          };
-          localStorage.setItem(`careerdna_roadmaps_history_${user.id}`, JSON.stringify([newItem, ...history]));
-        }
-      } catch (e) {
-        console.error('Error saving roadmap history safely:', e);
       }
-    }
-  }, [targetCareer, roadmapDifficulty, user]);
+      if (!match) {
+        missing.push(kw.name);
+      }
+    });
+    return missing;
+  }, [targetCareerKeywords, latestResume, projects, assessment]);
+
+  const activeRoadmap = useMemo(() => {
+    return originallyMissingSkills.map(skillName => {
+      const pathway = generatePathwayForSkill(skillName);
+      
+      let difficulty: 'Beginner' | 'Intermediate' | 'Advanced' = 'Beginner';
+      if (pathway.priorityScore >= 90) difficulty = 'Advanced';
+      else if (pathway.priorityScore >= 80) difficulty = 'Intermediate';
+
+      // Primary course resource
+      const courseResource = pathway.resources.find(r => r.provider === 'Udemy' || r.provider === 'Coursera' || r.provider === 'freeCodeCamp') || pathway.resources[0];
+      const certResource = pathway.resources.find(r => r.provider === 'Coursera' || r.provider === 'Official Documentation') || pathway.resources[1];
+
+      return {
+        skill: skillName,
+        whyItMatters: pathway.whyItMatters,
+        priorityScore: pathway.priorityScore,
+        estimatedHours: pathway.estimatedHours,
+        readinessImpact: pathway.readinessImpact,
+        difficulty,
+        course: courseResource,
+        certification: certResource.title,
+        project: pathway.beginnerProject,
+        resources: pathway.resources
+      };
+    });
+  }, [originallyMissingSkills]);
+
+  const estimatedHoursRemaining = useMemo(() => {
+    let total = 0;
+    scores.missingSkills.forEach(skillName => {
+      const pathway = generatePathwayForSkill(skillName);
+      total += pathway.estimatedHours;
+    });
+    return total;
+  }, [scores.missingSkills]);
 
   const handleCareerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setTargetCareerId(e.target.value);
@@ -1110,15 +1149,28 @@ export default function Roadmaps() {
     );
   }
 
-  // Calculate completion stats
-  const totalSteps = activeRoadmap.length * 3; // 3 core parts per phase: Course, Cert, Project
+  // Calculate completion stats based on originally missing skills
+  const totalSteps = originallyMissingSkills.length * 3;
   let completedCount = 0;
-  activeRoadmap.forEach((m, idx) => {
-    if (completedSteps[`${targetCareer}_${roadmapDifficulty}_${idx}_course`]) completedCount++;
-    if (completedSteps[`${targetCareer}_${roadmapDifficulty}_${idx}_cert`]) completedCount++;
-    if (completedSteps[`${targetCareer}_${roadmapDifficulty}_${idx}_project`]) completedCount++;
+  originallyMissingSkills.forEach(skillName => {
+    if (completedSteps[`${skillName}_course`]) completedCount++;
+    if (completedSteps[`${skillName}_cert`]) completedCount++;
+    if (completedSteps[`${skillName}_project`]) completedCount++;
   });
   const completionPercent = totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0;
+
+  // Provider icon mapper
+  const getProviderIcon = (provider: string) => {
+    switch (provider) {
+      case 'YouTube': return '📺';
+      case 'Coursera': return '🎓';
+      case 'Udemy': return '💻';
+      case 'freeCodeCamp': return '🔥';
+      case 'Roadmap.sh': return '🗺️';
+      case 'GeeksforGeeks': return '👾';
+      default: return '📖';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -1135,19 +1187,12 @@ export default function Roadmaps() {
             <Map className="h-6 w-6 text-indigo-400" /> Learning Roadmaps
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Personalized learning paths tailored to your current resume score of <strong className="text-indigo-400">{resumeScore}%</strong>.
+            Personalized study blueprints dynamically generated based on detected missing skill gaps.
           </p>
         </div>
 
         {/* Selected target role */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-slate-950/60 p-2 border border-slate-900 rounded-xl text-xs">
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider pl-1 shrink-0">Difficulty</span>
-            <span className="px-2 py-0.5 rounded font-mono font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wide">
-              {roadmapDifficulty}
-            </span>
-          </div>
-
           <div className="flex items-center gap-2 bg-slate-950/60 p-2 border border-slate-900 rounded-xl text-xs">
             <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider pl-1 shrink-0">Target Profile</span>
             <select 
@@ -1166,106 +1211,186 @@ export default function Roadmaps() {
       </div>
 
       <div className="grid lg:grid-cols-12 gap-8 max-w-6xl mx-auto">
-        {/* ROADMAP TIMELINE TIMINGS */}
+        {/* ROADMAP TIMELINE */}
         <div className="lg:col-span-8 space-y-8">
-          {activeRoadmap.map((m, idx) => (
-            <div key={idx} className="relative flex gap-6">
-              {/* Timeline dot bar */}
-              <div className="flex flex-col items-center shrink-0">
-                <div className="h-8 w-8 rounded-full bg-slate-950 border-2 border-indigo-500/30 flex items-center justify-center text-xs font-bold text-indigo-400 shadow-md">
-                  {idx + 1}
-                </div>
-                {idx < activeRoadmap.length - 1 && (
-                  <div className="w-0.5 bg-gradient-to-b from-indigo-500/30 to-indigo-500/5 flex-1 my-2" />
-                )}
-              </div>
+          {activeRoadmap.map((m, idx) => {
+            const isCourseDone = completedSteps[`${m.skill}_course`] === true;
+            const isCertDone = completedSteps[`${m.skill}_cert`] === true;
+            const isProjectDone = completedSteps[`${m.skill}_project`] === true;
+            
+            let doneSteps = 0;
+            if (isCourseDone) doneSteps++;
+            if (isCertDone) doneSteps++;
+            if (isProjectDone) doneSteps++;
 
-              {/* Roadmap Milestone Details */}
-              <div className="glass-panel border-slate-900 rounded-3xl p-6 space-y-4 flex-1">
-                <div className="flex justify-between items-start flex-wrap gap-2">
-                  <div>
-                    <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider block font-mono">
-                      {m.phase} — {m.duration}
+            const isResolved = doneSteps >= 2;
+
+            return (
+              <div key={idx} className="relative flex gap-6">
+                {/* Timeline dot bar */}
+                <div className="flex flex-col items-center shrink-0">
+                  <div className={`h-8 w-8 rounded-full bg-slate-950 border-2 flex items-center justify-center text-xs font-bold shadow-md transition-smooth ${
+                    isResolved 
+                      ? 'border-emerald-500 text-emerald-400' 
+                      : 'border-indigo-500/30 text-indigo-400'
+                  }`}>
+                    {isResolved ? '✓' : idx + 1}
+                  </div>
+                  {idx < activeRoadmap.length - 1 && (
+                    <div className="w-0.5 bg-gradient-to-b from-indigo-500/30 to-indigo-500/5 flex-1 my-2" />
+                  )}
+                </div>
+
+                {/* Roadmap Milestone Details */}
+                <div className="glass-panel border-slate-900 rounded-3xl p-6 space-y-4 flex-1 bg-slate-950/20">
+                  <div className="flex justify-between items-start flex-wrap gap-2 border-b border-slate-900 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase tracking-wider ${
+                          m.difficulty === 'Advanced' 
+                            ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' 
+                            : m.difficulty === 'Intermediate' 
+                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' 
+                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        }`}>
+                          {m.difficulty}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-semibold font-mono">
+                          Est. Time: {m.estimatedHours} Hours
+                        </span>
+                      </div>
+                      <h3 className="font-extrabold text-white text-base mt-1.5 flex items-center gap-2">
+                        Milestone: Learn {m.skill}
+                      </h3>
+                      <p className="text-[11px] text-slate-400 mt-1 leading-relaxed text-justify">{m.whyItMatters}</p>
+                    </div>
+                    
+                    <span className={`px-2.5 py-1 rounded-lg text-[9px] font-mono font-bold uppercase tracking-wide border transition-smooth ${
+                      isResolved 
+                        ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' 
+                        : doneSteps > 0 
+                        ? 'bg-amber-500/15 border-amber-500/30 text-amber-400' 
+                        : 'bg-slate-900 border-slate-800 text-slate-500'
+                    }`}>
+                      {isResolved ? 'Resolved' : doneSteps > 0 ? 'In Progress' : 'Not Started'}
                     </span>
-                    <h3 className="font-bold text-white text-base mt-0.5">{m.title}</h3>
                   </div>
-                  
-                  <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-slate-900 border border-slate-800 text-slate-400 uppercase tracking-wide">
-                    {completedCount >= (idx + 1) * 3 ? 'Completed' : 'In Progress'}
-                  </span>
-                </div>
 
-                {/* Subtasks checklist */}
-                <div className="space-y-3 pt-2">
-                  {/* Step 1: Course */}
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-950/40 border border-slate-900 hover:border-slate-800 transition-smooth">
-                    <button 
-                      type="button"
-                      onClick={() => toggleStep(`${targetCareer}_${roadmapDifficulty}_${idx}_course`)}
-                      className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-smooth cursor-pointer ${
-                        completedSteps[`${targetCareer}_${roadmapDifficulty}_${idx}_course`]
-                          ? 'bg-emerald-500 border-emerald-500 text-slate-950'
-                          : 'border-slate-800 hover:border-indigo-500/60'
-                      }`}
-                    >
-                      {completedSteps[`${targetCareer}_${roadmapDifficulty}_${idx}_course`] && <Check className="h-3 w-3 stroke-[3]" />}
-                    </button>
-                    <div className="space-y-0.5 flex-1 min-w-0">
-                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                        <BookOpen className="h-3.5 w-3.5" /> Tutorial / Course
-                      </span>
-                      <p className="text-xs font-bold text-slate-200 truncate">{m.course}</p>
+                  {/* Course Cards Grid */}
+                  <div className="space-y-3 pt-1">
+                    <h4 className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Recommended Clickable Courses</h4>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {m.resources.filter(r => r.provider === 'Udemy' || r.provider === 'Coursera' || r.provider === 'freeCodeCamp').slice(0, 2).map((res, rIdx) => (
+                        <a 
+                          key={rIdx}
+                          href={res.url} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="p-3 rounded-xl bg-slate-950/60 border border-slate-900 hover:border-indigo-500/40 flex flex-col justify-between space-y-2 group transition-smooth cursor-pointer"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex justify-between items-center text-[9px] font-mono">
+                              <span className="text-indigo-400 font-bold flex items-center gap-1 uppercase">
+                                <span className="text-xs">{getProviderIcon(res.provider)}</span> {res.provider}
+                              </span>
+                              <span className="text-slate-500 font-bold">⭐ {res.qualityScore}</span>
+                            </div>
+                            <p className="text-[11px] font-bold text-slate-200 group-hover:text-white transition-smooth line-clamp-2 leading-snug">{res.title}</p>
+                          </div>
+                          <div className="flex justify-between items-center text-[9px] pt-1 border-t border-slate-900/60">
+                            <span className="text-slate-500 font-semibold">{res.duration || 'Self-paced'}</span>
+                            <span className={`px-1 rounded font-bold uppercase tracking-wide ${res.isFree ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                              {res.isFree ? 'Free' : 'Paid'}
+                            </span>
+                          </div>
+                        </a>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Step 2: Certification */}
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-950/40 border border-slate-900 hover:border-slate-800 transition-smooth">
-                    <button 
-                      type="button"
-                      onClick={() => toggleStep(`${targetCareer}_${roadmapDifficulty}_${idx}_cert`)}
-                      className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-smooth cursor-pointer ${
-                        completedSteps[`${targetCareer}_${roadmapDifficulty}_${idx}_cert`]
-                          ? 'bg-emerald-500 border-emerald-500 text-slate-950'
-                          : 'border-slate-800 hover:border-indigo-500/60'
-                      }`}
-                    >
-                      {completedSteps[`${targetCareer}_${roadmapDifficulty}_${idx}_cert`] && <Check className="h-3 w-3 stroke-[3]" />}
-                    </button>
-                    <div className="space-y-0.5 flex-1 min-w-0">
-                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                        <Award className="h-3.5 w-3.5" /> Certification Objective
-                      </span>
-                      <p className="text-xs font-bold text-slate-200 truncate">{m.certification}</p>
+                  {/* Interactive Subtasks checklist */}
+                  <div className="space-y-3 pt-2">
+                    <h4 className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Milestone Checklist</h4>
+                    
+                    {/* Step 1: Course */}
+                    <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-950/40 border border-slate-900 hover:border-slate-800 transition-smooth">
+                      <button 
+                        type="button"
+                        onClick={() => toggleStep(`${m.skill}_course`)}
+                        className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-smooth cursor-pointer ${
+                          isCourseDone
+                            ? 'bg-emerald-500 border-emerald-500 text-slate-950'
+                            : 'border-slate-800 hover:border-indigo-500/60'
+                        }`}
+                      >
+                        {isCourseDone && <Check className="h-3 w-3 stroke-[3]" />}
+                      </button>
+                      <div className="space-y-0.5 flex-1 min-w-0">
+                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                          <BookOpen className="h-3.5 w-3.5 text-indigo-400" /> Tutorial & Course Completion
+                        </span>
+                        <p className="text-xs font-bold text-slate-200 truncate">{m.course.title}</p>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Step 3: Project */}
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-950/40 border border-slate-900 hover:border-slate-800 transition-smooth">
-                    <button 
-                      type="button"
-                      onClick={() => toggleStep(`${targetCareer}_${roadmapDifficulty}_${idx}_project`)}
-                      className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-smooth cursor-pointer ${
-                        completedSteps[`${targetCareer}_${roadmapDifficulty}_${idx}_project`]
-                          ? 'bg-emerald-500 border-emerald-500 text-slate-950'
-                          : 'border-slate-800 hover:border-indigo-500/60'
-                      }`}
-                    >
-                      {completedSteps[`${targetCareer}_${roadmapDifficulty}_${idx}_project`] && <Check className="h-3 w-3 stroke-[3]" />}
-                    </button>
-                    <div className="space-y-0.5 flex-1 min-w-0">
-                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                        <Briefcase className="h-3.5 w-3.5" /> Hands-on Project
-                      </span>
-                      <p className="text-xs font-bold text-slate-200 leading-normal">{m.project}</p>
+                    {/* Step 2: Certification */}
+                    <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-950/40 border border-slate-900 hover:border-slate-800 transition-smooth">
+                      <button 
+                        type="button"
+                        onClick={() => toggleStep(`${m.skill}_cert`)}
+                        className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-smooth cursor-pointer ${
+                          isCertDone
+                            ? 'bg-emerald-500 border-emerald-500 text-slate-950'
+                            : 'border-slate-800 hover:border-indigo-500/60'
+                        }`}
+                      >
+                        {isCertDone && <Check className="h-3 w-3 stroke-[3]" />}
+                      </button>
+                      <div className="space-y-0.5 flex-1 min-w-0">
+                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                          <Award className="h-3.5 w-3.5 text-indigo-400" /> Certification Objective
+                        </span>
+                        <p className="text-xs font-bold text-slate-200 truncate">{m.certification}</p>
+                      </div>
+                    </div>
+
+                    {/* Step 3: Project */}
+                    <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-950/40 border border-slate-900 hover:border-slate-800 transition-smooth">
+                      <button 
+                        type="button"
+                        onClick={() => toggleStep(`${m.skill}_project`)}
+                        className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-smooth cursor-pointer ${
+                          isProjectDone
+                            ? 'bg-emerald-500 border-emerald-500 text-slate-950'
+                            : 'border-slate-800 hover:border-indigo-500/60'
+                        }`}
+                      >
+                        {isProjectDone && <Check className="h-3 w-3 stroke-[3]" />}
+                      </button>
+                      <div className="space-y-0.5 flex-1 min-w-0">
+                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                          <Briefcase className="h-3.5 w-3.5 text-indigo-400" /> Hands-on Practice Project
+                        </span>
+                        <p className="text-xs font-bold text-slate-200 leading-normal">{m.project}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+            );
+          })}
+          {originallyMissingSkills.length === 0 && (
+            <div className="glass-panel border-emerald-500/10 bg-emerald-500/5 rounded-3xl p-8 text-center space-y-4">
+              <CheckCircle className="h-10 w-10 text-emerald-400 mx-auto" />
+              <h3 className="font-bold text-white text-lg">No Active Skill Gaps!</h3>
+              <p className="text-xs text-slate-400 leading-relaxed max-w-sm mx-auto">
+                Congratulations! You possess 100% of the tech skills required for the target career path. Go to the Job Sourcing tab to apply for opportunities.
+              </p>
             </div>
-          ))}
+          )}
         </div>
 
-        {/* ROADMAP PROGRESS METRICS SIDEBAR */}
+        {/* ROADMAP PROGRESS SIDEBAR */}
         <div className="lg:col-span-4 space-y-6">
           {/* Progress gauge */}
           <div className="glass-panel border-slate-900 rounded-3xl p-6 flex flex-col items-center text-center space-y-4">
@@ -1282,22 +1407,83 @@ export default function Roadmaps() {
                   strokeDasharray={`${completionPercent}, 100`}
                 />
               </svg>
-              <span className="absolute text-xl font-extrabold text-white">{completionPercent}%</span>
+              <span className="absolute text-xl font-extrabold text-white font-mono">{completionPercent}%</span>
             </div>
 
             <p className="text-[11px] text-slate-400 leading-relaxed px-2">
-              Mark courses, certifications, and portfolio projects as complete to build out your profile strength.
+              Mark course modules, certification milestones, and projects as complete to resolve active tech stack gaps.
             </p>
           </div>
 
-          {/* Profile Insights panel */}
-          <div className="glass-panel border-slate-900 bg-slate-950/40 rounded-3xl p-6 space-y-4">
-            <h4 className="font-bold text-white text-sm mb-2 flex items-center gap-1.5">
-              <Clock className="h-4 w-4 text-indigo-400" /> Progression Track
+          {/* Impact Engine Before/After Comparison panel */}
+          <div className="glass-panel border-emerald-500/20 bg-emerald-500/5 rounded-3xl p-6 space-y-4">
+            <h4 className="font-bold text-white text-sm flex items-center gap-1.5">
+              <Award className="h-4 w-4 text-emerald-400" /> Impact Engine: Before vs After
             </h4>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              We personalize this progression blueprint. By mastering these competencies, you systematically address skills requirements identified in your target profile matching matrices.
-            </p>
+            
+            <div className="space-y-3 text-xs">
+              <div className="flex justify-between items-center bg-slate-950/60 p-2.5 border border-slate-900 rounded-xl">
+                <span className="text-slate-400 font-semibold">Baseline Job Readiness:</span>
+                <span className="text-slate-400 font-bold font-mono">{scores.baselineJobReadinessScore}%</span>
+              </div>
+              <div className="flex justify-between items-center bg-emerald-950/40 p-2.5 border border-emerald-900/30 rounded-xl">
+                <span className="text-slate-300 font-semibold">Current Job Readiness:</span>
+                <span className="text-emerald-400 font-extrabold font-mono text-sm flex items-center gap-1">
+                  {scores.jobReadinessScore}%
+                  {scores.jobReadinessScore > scores.baselineJobReadinessScore && (
+                    <span className="text-[10px] text-emerald-500 font-bold font-mono bg-emerald-500/10 px-1 rounded">
+                      +{scores.jobReadinessScore - scores.baselineJobReadinessScore}%
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between items-center bg-indigo-950/20 p-2.5 border border-indigo-900/30 rounded-xl">
+                <span className="text-slate-300 font-semibold">DNA Composite Score:</span>
+                <span className="text-indigo-400 font-extrabold font-mono text-sm">
+                  {scores.finalDnaScore}/100
+                </span>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-900/80 pt-3.5 space-y-2">
+              <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase font-mono">
+                <span>Resolved Skill Gaps</span>
+                <span className="text-emerald-400">{originallyMissingSkills.length - scores.missingSkills.length} Resolved</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {originallyMissingSkills.map((s, i) => {
+                  const isResolved = !scores.missingSkills.includes(s);
+                  if (!isResolved) return null;
+                  return (
+                    <span key={i} className="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center gap-0.5">
+                      ✓ {s}
+                    </span>
+                  );
+                })}
+                {originallyMissingSkills.length - scores.missingSkills.length === 0 && (
+                  <span className="text-[10px] text-slate-500 italic leading-relaxed">No skill gaps resolved yet. Complete checklist tasks above.</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Timeline Remaining Card */}
+          <div className="glass-panel border-slate-900 bg-slate-950/40 rounded-3xl p-6 space-y-3">
+            <h4 className="font-bold text-white text-sm flex items-center gap-1.5">
+              <Clock className="h-4 w-4 text-indigo-400 animate-pulse" /> Timeline Remaining
+            </h4>
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-900 flex justify-between items-center text-xs">
+              <span className="text-slate-500 font-semibold">Total Study Gaps:</span>
+              <span className="text-white font-bold">{scores.missingSkills.length} Skills</span>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-900 flex justify-between items-center text-xs">
+              <span className="text-slate-500 font-semibold">Est. Hours Required:</span>
+              <span className="text-indigo-400 font-extrabold font-mono">{estimatedHoursRemaining} Hours</span>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-900 flex justify-between items-center text-xs">
+              <span className="text-slate-500 font-semibold">Suggested Track Pace:</span>
+              <span className="text-white font-semibold">~{Math.ceil(estimatedHoursRemaining / 10)} Weeks (10h/wk)</span>
+            </div>
           </div>
         </div>
       </div>

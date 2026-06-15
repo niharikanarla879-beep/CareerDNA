@@ -2,32 +2,81 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/lib/auth-context';
 import { useResume, InterviewSession } from '@/lib/resume-context';
 import { targetCareers } from '@/lib/constants';
 import {
   ArrowLeft,
   Video,
   Sparkles,
-  CheckCircle2,
-  AlertTriangle,
-  ChevronRight,
-  Award,
   Play,
-  RotateCcw,
-  BookOpen,
   Volume2,
   Mic,
-  MicOff,
   Square,
-  VolumeX,
   TrendingUp,
   Info
 } from 'lucide-react';
 import { interviewQuestionsDb, QuestionDef } from '@/lib/interview-questions';
 
+interface TranscriptItem {
+  question: string;
+  answer: string;
+  score: number;
+  feedback: string;
+  ideal: string;
+  missed: string[];
+  technicalScore: number;
+  explanationScore: number;
+  clarityScore: number;
+  confidenceScore: number;
+}
+
+interface SpeechRecognitionEventResult {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: {
+      isFinal: boolean;
+      length: number;
+      [index: number]: {
+        transcript: string;
+      };
+    };
+  };
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+}
+
+interface SpeechRecognitionInstance {
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEventResult) => void) | null;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onerror: ((e: SpeechRecognitionErrorEvent) => void) | null;
+}
+
+const getSpeechErrorMessage = (errorCode: string): string => {
+  switch (errorCode) {
+    case 'not-allowed':
+      return 'Microphone permission denied. Please enable microphone permissions in your browser settings, or type your response manually.';
+    case 'no-speech':
+      return 'No speech detected. Please speak clearly into your microphone, or type your response manually.';
+    case 'network':
+      return 'Network error: A connection to the speech recognition server could not be established. Please check your internet connection, or type your response manually.';
+    case 'aborted':
+      return 'Speech recognition aborted. Click "Start Speaking" to try again, or type your response manually.';
+    default:
+      return `Speech recognition error (${errorCode}). Please check your microphone connection, or type your response manually.`;
+  }
+};
+
 export default function InterviewCoach() {
-  const { user } = useAuth();
   const { targetCareerId, setTargetCareerId, interviewHistory, addInterviewSession } = useResume();
   
   // Setup states
@@ -45,7 +94,7 @@ export default function InterviewCoach() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Evaluation grades & transcripts
-  const [transcripts, setTranscripts] = useState<any[]>([]);
+  const [transcripts, setTranscripts] = useState<TranscriptItem[]>([]);
   const [sessionScoreBreakdown, setSessionScoreBreakdown] = useState({
     communication: 0,
     technical: 0,
@@ -56,48 +105,17 @@ export default function InterviewCoach() {
   });
   
   // Audio Speech APIs
-  const [recognition, setRecognition] = useState<any>(null);
+  const [micError, setMicError] = useState<string | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  
+  const isSpeechSupported = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const win = window as Window & typeof globalThis & { SpeechRecognition?: new () => SpeechRecognitionInstance; webkitSpeechRecognition?: new () => SpeechRecognitionInstance };
+    return !!win.SpeechRecognition || !!win.webkitSpeechRecognition;
+  }, []);
   
   const targetCareer = targetCareerId || 'swe';
   const roleName = targetCareers.find(c => c.id === targetCareer)?.name || 'Target Profile';
-
-  // Initialize Speech Recognition API
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const rec = new SpeechRecognition();
-        rec.continuous = true;
-        rec.interimResults = true;
-        rec.lang = 'en-US';
-        
-        rec.onresult = (event: any) => {
-          let interimTranscript = '';
-          let finalTranscript = '';
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            } else {
-              interimTranscript += event.results[i][0].transcript;
-            }
-          }
-          setLiveTranscript(finalTranscript + interimTranscript);
-        };
-        
-        rec.onstart = () => {
-          setIsListening(true);
-          setLiveTranscript('');
-        };
-        rec.onend = () => setIsListening(false);
-        rec.onerror = (e: any) => {
-          console.error('Microphone SpeechRecognition error:', e);
-          setIsListening(false);
-        };
-        
-        setRecognition(rec);
-      }
-    }
-  }, []);
 
   // Timer runner
   useEffect(() => {
@@ -107,7 +125,7 @@ export default function InterviewCoach() {
       }, 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
-      setTimer(0);
+      setTimeout(() => setTimer(0), 0);
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -138,26 +156,90 @@ export default function InterviewCoach() {
   };
 
   const startListening = () => {
-    if (recognition) {
-      stopSpeaking();
-      try {
-        recognition.start();
-      } catch (e) {
-        console.error('Failed to start SpeechRecognition:', e);
-      }
-    } else {
-      alert('Speech recognition API is not supported in this browser. Please use Chrome or type your answer.');
+    stopSpeaking();
+    setMicError(null);
+    
+    if (typeof window === 'undefined') return;
+
+    const SpeechRecognition = 
+      (window as Window & typeof globalThis & { SpeechRecognition?: new () => SpeechRecognitionInstance; webkitSpeechRecognition?: new () => SpeechRecognitionInstance }).SpeechRecognition ||
+      (window as Window & typeof globalThis & { SpeechRecognition?: new () => SpeechRecognitionInstance; webkitSpeechRecognition?: new () => SpeechRecognitionInstance }).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setMicError('Speech recognition is not supported in this browser. Please use a modern version of Google Chrome or Microsoft Edge.');
+      return;
     }
+
+    // Request microphone permissions properly
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then((stream) => {
+        // Stop the tracks of the requested stream immediately to release the microphone lock
+        stream.getTracks().forEach(track => track.stop());
+
+        try {
+          if (recognitionRef.current) {
+            recognitionRef.current.abort();
+          }
+
+          const rec = new SpeechRecognition();
+          rec.continuous = true;
+          rec.interimResults = true;
+          rec.lang = 'en-US';
+
+          rec.onstart = () => {
+            setIsListening(true);
+            setLiveTranscript('');
+            setMicError(null);
+          };
+
+          rec.onresult = (event: SpeechRecognitionEventResult) => {
+            let interimTranscript = '';
+            let finalTranscript = '';
+            // Loop from 0 instead of event.resultIndex to correctly build continuous transcript
+            for (let i = 0; i < event.results.length; ++i) {
+              if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript;
+              } else {
+                interimTranscript += event.results[i][0].transcript;
+              }
+            }
+            setLiveTranscript(finalTranscript + interimTranscript);
+          };
+
+          rec.onerror = (event: SpeechRecognitionErrorEvent) => {
+            console.warn('Speech recognition warning status:', event.error);
+            const msg = getSpeechErrorMessage(event.error);
+            setMicError(msg);
+            setIsListening(false);
+          };
+
+          rec.onend = () => {
+            setIsListening(false);
+          };
+
+          recognitionRef.current = rec;
+          rec.start();
+        } catch (e) {
+          console.warn('Failed to initialize speech recognition:', e);
+          setMicError('Could not start speech recognition. Please check your microphone connection.');
+          setIsListening(false);
+        }
+      })
+      .catch((err) => {
+        console.warn('Microphone permission check failed:', err);
+        setMicError('Microphone permission denied. Please enable microphone permissions in your browser settings, or type your response manually.');
+        setIsListening(false);
+      });
   };
 
   const stopListening = () => {
-    if (recognition) {
+    if (recognitionRef.current) {
       try {
-        recognition.stop();
+        recognitionRef.current.stop();
       } catch (e) {
-        console.error(e);
+        console.warn('Failed to stop recognition:', e);
       }
     }
+    setIsListening(false);
   };
 
   const startSession = () => {
@@ -165,7 +247,17 @@ export default function InterviewCoach() {
     const typeDb = roleDb[qType === 'technical' ? 'technical' : qType === 'hr' ? 'hr' : 'scenario'] || roleDb['technical'];
     const baseQuestions = typeDb[difficulty] || typeDb['intermediate'];
 
-    setActiveQuestions(baseQuestions);
+    // Fisher-Yates Shuffle
+    const shuffled = [...baseQuestions];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    // Select subset of 5 questions if pool >= 5, otherwise all
+    const selectedQuestions = shuffled.length >= 5 ? shuffled.slice(0, 5) : shuffled;
+
+    setActiveQuestions(selectedQuestions);
     setCurrentQIndex(0);
     setTranscripts([]);
     setLiveTranscript('');
@@ -173,7 +265,7 @@ export default function InterviewCoach() {
     
     // Speak first question
     setTimeout(() => {
-      speakText(baseQuestions[0].question);
+      speakText(selectedQuestions[0].question);
     }, 500);
   };
 
@@ -205,22 +297,31 @@ export default function InterviewCoach() {
       ? matched.length / currentQ.idealAnswerKeys.length
       : 0.5;
 
-    // Technical score (out of 100)
-    const technicalScore = Math.min(100, Math.round(50 + keyMatchRatio * 50));
+    // Technical correctness (40%)
+    const technicalScore = Math.min(100, Math.round(30 + keyMatchRatio * 70));
     
-    // Communication & Clarity metrics based on sentence lengths
+    // Explanation quality (20%)
     const wordCount = answer.split(/\s+/).filter(w => w.length > 0).length;
-    const communicationScore = Math.min(100, Math.round(40 + Math.min(60, wordCount * 1.5)));
-    const clarityScore = Math.min(100, Math.round(55 + Math.min(45, (matched.length * 8) + (wordCount > 15 ? 10 : 0))));
-    const confidenceScore = Math.round(75 + Math.random() * 20); // Simulating speech speed fluency
-    const problemSolvingScore = Math.round(65 + keyMatchRatio * 35);
+    const explanationScore = Math.min(100, Math.round(30 + (keyMatchRatio * 40) + Math.min(30, (wordCount / 40) * 30)));
+    
+    // Communication clarity (20%)
+    const fillerWords = ['like', 'um', 'uh', 'actually', 'basically', 'so', 'literally'];
+    let fillerCount = 0;
+    ansLower.split(/\s+/).forEach(w => {
+      if (fillerWords.includes(w.replace(/[^a-zA-Z]/g, ''))) {
+        fillerCount++;
+      }
+    });
+    const clarityScore = Math.max(30, Math.min(100, Math.round(75 + Math.min(25, wordCount > 10 ? 25 : wordCount * 2.5) - (fillerCount * 8))));
+    
+    // Confidence score (20%)
+    const confidenceScore = Math.max(30, Math.min(100, Math.round(70 + Math.min(30, (wordCount / 30) * 30) - (fillerCount * 6))));
 
     const questionScore = Math.round(
       (technicalScore * 0.40) +
-      (communicationScore * 0.20) +
-      (confidenceScore * 0.15) +
-      (clarityScore * 0.15) +
-      (problemSolvingScore * 0.10)
+      (explanationScore * 0.20) +
+      (clarityScore * 0.20) +
+      (confidenceScore * 0.20)
     );
 
     const questionGradeFeedback = questionScore >= 80
@@ -235,7 +336,11 @@ export default function InterviewCoach() {
       score: questionScore,
       feedback: questionGradeFeedback,
       ideal: currentQ.suggestedAnswer,
-      missed
+      missed,
+      technicalScore,
+      explanationScore,
+      clarityScore,
+      confidenceScore
     };
 
     const updatedTranscripts = [...transcripts, newTranscriptItem];
@@ -251,24 +356,60 @@ export default function InterviewCoach() {
       }, 800);
     } else {
       // Calculate overall session average score
-      const sumCom = updatedTranscripts.reduce((acc, c) => acc + communicationScore, 0);
-      const sumTech = updatedTranscripts.reduce((acc, c) => acc + technicalScore, 0);
-      const sumConf = updatedTranscripts.reduce((acc, c) => acc + confidenceScore, 0);
-      const sumClarity = updatedTranscripts.reduce((acc, c) => acc + clarityScore, 0);
-      const sumSolve = updatedTranscripts.reduce((acc, c) => acc + problemSolvingScore, 0);
+      const count = updatedTranscripts.length || 1;
+      const sumTech = updatedTranscripts.reduce((acc, c) => acc + c.technicalScore, 0);
+      const sumExpl = updatedTranscripts.reduce((acc, c) => acc + c.explanationScore, 0);
+      const sumClar = updatedTranscripts.reduce((acc, c) => acc + c.clarityScore, 0);
+      const sumConf = updatedTranscripts.reduce((acc, c) => acc + c.confidenceScore, 0);
       const sumOverall = updatedTranscripts.reduce((acc, c) => acc + c.score, 0);
 
-      const count = updatedTranscripts.length;
       const breakdown = {
-        communication: Math.round(sumCom / count),
+        communication: Math.round(sumClar / count),
         technical: Math.round(sumTech / count),
         confidence: Math.round(sumConf / count),
-        clarity: Math.round(sumClarity / count),
-        problemSolving: Math.round(sumSolve / count),
+        clarity: Math.round(sumClar / count),
+        problemSolving: Math.round(sumExpl / count),
         overall: Math.round(sumOverall / count)
       };
 
       setSessionScoreBreakdown(breakdown);
+
+      // Dynamic feedback generation
+      const allMissed = updatedTranscripts.flatMap(t => t.missed);
+      const allMatched = updatedTranscripts.flatMap(t => {
+        const q = activeQuestions[updatedTranscripts.indexOf(t)];
+        if (!q) return [];
+        return q.idealAnswerKeys.filter(key => !t.missed.includes(key));
+      });
+
+      const uniqueMatched = Array.from(new Set(allMatched));
+      const uniqueMissed = Array.from(new Set(allMissed));
+
+      const strengthsList = [];
+      if (uniqueMatched.length > 0) {
+        strengthsList.push(`Demonstrated understanding of core concepts: ${uniqueMatched.slice(0, 3).join(', ')}.`);
+      } else {
+        strengthsList.push('Answered basic conceptual queries directly.');
+      }
+      if (breakdown.confidence >= 75) {
+        strengthsList.push('Delivered response with confidence and smooth verbal flow.');
+      } else {
+        strengthsList.push('Kept answers clear and focused.');
+      }
+
+      const weaknessesList = uniqueMissed.slice(0, 3).map(m => `Omitted deep coverage of "${m}".`);
+      if (weaknessesList.length === 0) {
+        weaknessesList.push('No major conceptual omissions detected.');
+      }
+
+      const improvementsList = [];
+      if (uniqueMissed.length > 0) {
+        improvementsList.push(`Study and study definitions for: ${uniqueMissed.slice(0, 3).join(', ')}.`);
+      }
+      if (breakdown.confidence < 75) {
+        improvementsList.push('Try to minimize filler words like "like", "um", "so" to improve confidence index.');
+      }
+      improvementsList.push('Use the STAR method (Situation, Task, Action, Result) to structure behavioral scenario responses.');
 
       // Save to global context
       const newSessionResult: InterviewSession = {
@@ -284,10 +425,10 @@ export default function InterviewCoach() {
         clarityScore: breakdown.clarity,
         problemSolvingScore: breakdown.problemSolving,
         feedbacks: {
-          strengths: ['Clear grasp of active tech stack principles.', 'Good pacing and conceptual clarity.'],
-          weaknesses: updatedTranscripts.flatMap(t => t.missed).slice(0, 3).map(m => `Omitted deep coverage of "${m}".`),
-          missedConcepts: updatedTranscripts.flatMap(t => t.missed).slice(0, 4),
-          improvements: ['Elaborate on database scaling tradeoffs.', 'Incorporate specific metrics when detailing system bottlenecks.']
+          strengths: strengthsList,
+          weaknesses: weaknessesList,
+          missedConcepts: uniqueMissed.slice(0, 4),
+          improvements: improvementsList
         },
         transcripts: updatedTranscripts
       };
@@ -316,7 +457,11 @@ export default function InterviewCoach() {
         score: 90,
         feedback: 'Excellent answer detailing correct toolkit options and localized partition logic to prevent performance drag.',
         ideal: 'Suggest Redux Toolkit, Redux Sagas, or Zustand for global scale, partitioning states by feature, and localized React Context layers.',
-        missed: []
+        missed: [],
+        technicalScore: 92,
+        explanationScore: 90,
+        clarityScore: 88,
+        confidenceScore: 90
       },
       {
         question: 'Explain how database indexing increases SQL query performance, and mention potential trade-offs.',
@@ -324,7 +469,11 @@ export default function InterviewCoach() {
         score: 74,
         feedback: 'Good basic explanation, but missed specifying search bottlenecks, clustered vs non-clustered definitions, and memory overhead variables.',
         ideal: 'Indexes use B-Trees or Hash tables to reduce search time. Primary trade-offs include storage size overhead and performance degradation on writes (INSERT, UPDATE, DELETE).',
-        missed: ['clustered indexes', 'write overhead', 'storage index size']
+        missed: ['clustered indexes', 'write overhead', 'storage index size'],
+        technicalScore: 75,
+        explanationScore: 72,
+        clarityScore: 78,
+        confidenceScore: 70
       }
     ]);
 
@@ -409,7 +558,7 @@ export default function InterviewCoach() {
                   <label className="block text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Difficulty Level</label>
                   <select 
                     value={difficulty}
-                    onChange={(e) => setDifficulty(e.target.value as any)}
+                    onChange={(e) => setDifficulty(e.target.value as 'beginner' | 'intermediate' | 'advanced')}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none cursor-pointer focus:border-indigo-500 transition-smooth"
                   >
                     <option value="beginner">Beginner (Foundational)</option>
@@ -487,8 +636,8 @@ export default function InterviewCoach() {
                       key={i} 
                       className="w-1 bg-indigo-500 rounded-full animate-pulse" 
                       style={{ 
-                        height: `${20 + Math.random() * 50}%`,
-                        animationDuration: `${0.4 + Math.random() * 0.5}s`,
+                        height: `${20 + ((i * 13) % 51)}%`,
+                        animationDuration: `${0.4 + ((i * 7) % 6) * 0.1}s`,
                         animationDelay: `${i * 0.05}s`
                       }} 
                     />
@@ -500,8 +649,8 @@ export default function InterviewCoach() {
                       key={i} 
                       className="w-1 bg-teal-400 rounded-full animate-pulse" 
                       style={{ 
-                        height: `${25 + Math.random() * 40}%`,
-                        animationDuration: `${0.3 + Math.random() * 0.4}s`,
+                        height: `${25 + ((i * 17) % 41)}%`,
+                        animationDuration: `${0.3 + ((i * 3) % 5) * 0.1}s`,
                         animationDelay: `${i * 0.04}s`
                       }} 
                     />
@@ -516,6 +665,12 @@ export default function InterviewCoach() {
 
               {/* Live Transcription box */}
               <div className="space-y-2">
+                {micError && (
+                  <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold">
+                    {micError}
+                  </div>
+                )}
+                
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Live Transcription</span>
                   {isListening && (
@@ -534,7 +689,12 @@ export default function InterviewCoach() {
 
               {/* Microphone actions */}
               <div className="flex gap-2">
-                {isListening ? (
+                {!isSpeechSupported ? (
+                  <div className="flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold bg-slate-950 border border-slate-900 text-slate-400 flex items-center gap-2 justify-center">
+                    <Info className="h-4 w-4 text-indigo-400 shrink-0" />
+                    <span>Speech recognition unavailable. Fallback to manual typing mode is enabled.</span>
+                  </div>
+                ) : isListening ? (
                   <button
                     onClick={stopListening}
                     className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-smooth flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-rose-600/15"
@@ -697,7 +857,7 @@ export default function InterviewCoach() {
                 )}
 
                 {/* Database history logs */}
-                {interviewHistory.map((session) => (
+                {(sessionPhase === 'summary' ? interviewHistory.slice(1) : interviewHistory).map((session) => (
                   <div 
                     key={session.id} 
                     className="p-3 rounded-xl bg-slate-950 border border-slate-900 space-y-1.5 text-xs"

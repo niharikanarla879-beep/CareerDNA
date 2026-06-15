@@ -109,10 +109,11 @@ export async function POST(req: NextRequest) {
       fileSize: file.size
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error parsing resume file:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Failed to extract text from the uploaded document. Please check the file formatting.';
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to extract text from the uploaded document. Please check the file formatting.' },
+      { success: false, error: errorMsg },
       { status: 500 }
     );
   }

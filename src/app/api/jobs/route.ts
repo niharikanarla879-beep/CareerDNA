@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { roleKeywords } from '@/lib/analyzer';
 
+interface ArbeitnowJob {
+  slug?: string;
+  title?: string;
+  company_name?: string;
+  location?: string;
+  description?: string;
+  tags?: string[];
+  remote?: boolean;
+  url?: string;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -19,7 +30,7 @@ export async function GET(req: NextRequest) {
     }
 
     const resData = await response.json();
-    const rawJobs = resData.data || [];
+    const rawJobs = (resData.data || []) as ArbeitnowJob[];
 
     // Map roleId to common titles / keywords to filter jobs
     const roleMatchMap: Record<string, string[]> = {
@@ -40,7 +51,7 @@ export async function GET(req: NextRequest) {
 
     // Filter and map jobs
     const matchedJobs = rawJobs
-      .filter((job: any) => {
+      .filter((job: ArbeitnowJob) => {
         const titleLower = (job.title || '').toLowerCase();
         const tagsLower = (job.tags || []).map((t: string) => t.toLowerCase());
 
@@ -49,7 +60,7 @@ export async function GET(req: NextRequest) {
 
         return matchesTitle || matchesTags;
       })
-      .map((job: any) => {
+      .map((job: ArbeitnowJob) => {
         const descLower = (job.description || '').toLowerCase();
         const titleLower = (job.title || '').toLowerCase();
         const tags = job.tags || [];
@@ -124,8 +135,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ success: true, jobs: matchedJobs.slice(0, 15) });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching live jobs:', error);
-    return NextResponse.json({ success: false, error: error.message || 'Failed to fetch live job listings' }, { status: 500 });
+    const errorMsg = error instanceof Error ? error.message : 'Failed to fetch live job listings';
+    return NextResponse.json({ success: false, error: errorMsg }, { status: 500 });
   }
 }

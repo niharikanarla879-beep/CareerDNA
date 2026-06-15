@@ -20,11 +20,18 @@ export default function UserProfilePage() {
   // Load user data into form
   useEffect(() => {
     if (user) {
-      setFirstName(user.firstName || '');
-      setLastName(user.lastName || '');
-      setCurrentJob(user.currentJob || '');
-      setEducationLevel(user.educationLevel || '');
-      setExperienceYears(user.experienceYears || 0);
+      const fn = user.firstName || '';
+      const ln = user.lastName || '';
+      const cj = user.currentJob || '';
+      const el = user.educationLevel || '';
+      const ey = user.experienceYears || 0;
+      setTimeout(() => {
+        setFirstName(fn);
+        setLastName(ln);
+        setCurrentJob(cj);
+        setEducationLevel(el);
+        setExperienceYears(ey);
+      }, 0);
     }
   }, [user]);
 
@@ -56,8 +63,9 @@ export default function UserProfilePage() {
       } else {
         setErrorMsg(res.error || 'Failed to update profile.');
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      setErrorMsg(errorMsg);
     } finally {
       setFormLoading(false);
     }
@@ -162,9 +170,9 @@ export default function UserProfilePage() {
                   >
                     <option value="">Select Level</option>
                     <option value="High School">High School</option>
-                    <option value="Associate's Degree">Associate's Degree</option>
-                    <option value="Bachelor's Degree">Bachelor's Degree</option>
-                    <option value="Master's Degree">Master's Degree</option>
+                    <option value="Associate's Degree">Associate&apos;s Degree</option>
+                    <option value="Bachelor's Degree">Bachelor&apos;s Degree</option>
+                    <option value="Master's Degree">Master&apos;s Degree</option>
                     <option value="Ph.D.">Ph.D.</option>
                   </select>
                 </div>

@@ -13,10 +13,9 @@ import {
   Video,
   Code,
   Map,
-  CheckCircle2,
-  AlertTriangle,
   ChevronRight,
-  TrendingUp
+  TrendingUp,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function ScoreEnginePage() {
@@ -31,11 +30,7 @@ export default function ScoreEnginePage() {
     return 'text-rose-400';
   };
 
-  const getScoreBg = (score: number) => {
-    if (score >= 80) return 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
-    if (score >= 60) return 'bg-amber-500/10 border-amber-500/20 text-amber-400';
-    return 'bg-rose-500/10 border-rose-500/20 text-rose-400';
-  };
+
 
   // Compile detailed actions list to raise score
   const scoreActionItems = [];
@@ -44,7 +39,7 @@ export default function ScoreEnginePage() {
     scoreActionItems.push({
       title: 'Complete DNA Decoder Assessment',
       desc: 'Complete RIASEC questions, work values survey, and personality parameters to verify baseline.',
-      bonus: '+20 points',
+      bonus: '+15 points',
       link: '/dashboard/assessment'
     });
   }
@@ -52,14 +47,14 @@ export default function ScoreEnginePage() {
     scoreActionItems.push({
       title: 'Audit and Parse Your Resume',
       desc: 'Upload a PDF/Word resume to parse skills, format structure, and keyword density.',
-      bonus: '+25 points',
+      bonus: '+20 points',
       link: '/dashboard/resume-analyzer'
     });
   } else if (scores.resumeScore < 80) {
     scoreActionItems.push({
       title: 'Optimize Resume Gaps',
       desc: 'Review and fix the suggested formatting and content keywords gaps to boost ATS score.',
-      bonus: `+${Math.round((80 - scores.resumeScore) * 0.25)} points`,
+      bonus: `+${Math.round((80 - scores.resumeScore) * 0.20)} points`,
       link: '/dashboard/resume-analyzer'
     });
   }
@@ -96,8 +91,8 @@ export default function ScoreEnginePage() {
   if (certs.length < 5) {
     scoreActionItems.push({
       title: 'Log Certified Credentials',
-      desc: 'Certifications add directly to your score ledger. Each certificate adds +2% points.',
-      bonus: `+${Math.round((5 - certs.length) * 2)} points`,
+      desc: 'Certifications add directly to your score ledger. Each certification adds +3 points (up to 5 certifications).',
+      bonus: `+${(5 - certs.length) * 3} points`,
       link: '/dashboard/projects'
     });
   }
@@ -105,7 +100,7 @@ export default function ScoreEnginePage() {
     scoreActionItems.push({
       title: 'Checkmark Roadmap Learning Progress',
       desc: 'Complete phase course study, cert targets, and projects inside learning roadmaps.',
-      bonus: `+${Math.round((100 - scores.roadmapProgressPercent) * 0.10)} points`,
+      bonus: `+${Math.round((100 - scores.roadmapProgressPercent) * 0.15)} points`,
       link: '/dashboard/roadmaps'
     });
   }
@@ -181,6 +176,26 @@ export default function ScoreEnginePage() {
 
           </div>
 
+          {/* Skill Gap Penalty Alert */}
+          {scores.skillGapPenalty > 0 && (
+            <div className="glass-panel border-rose-500/20 bg-rose-500/5 p-4 rounded-2xl flex items-center justify-between gap-3 animate-fade-in">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Missing Skill Gap Penalty</h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Deduction of <span className="text-rose-400 font-bold">-2 points</span> for each of the {scores.missingSkills.length} remaining missing skills.
+                  </p>
+                </div>
+              </div>
+              <span className="text-sm font-extrabold font-mono text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20 shrink-0 font-bold">
+                -{scores.skillGapPenalty} pts
+              </span>
+            </div>
+          )}
+
           {/* Breakdown cards grid */}
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">Detailed Parameter Breakdown</h3>
@@ -194,7 +209,7 @@ export default function ScoreEnginePage() {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white">Diagnostic Assessment</h4>
-                    <span className="text-[10px] text-slate-500">Weight: 20%</span>
+                    <span className="text-[10px] text-slate-500">Weight: 15%</span>
                   </div>
                 </div>
                 <span className={`text-sm font-bold font-mono ${getScoreColor(scores.assessmentScore)}`}>
@@ -210,7 +225,7 @@ export default function ScoreEnginePage() {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white">Resume ATS Score</h4>
-                    <span className="text-[10px] text-slate-500">Weight: 25%</span>
+                    <span className="text-[10px] text-slate-500">Weight: 20%</span>
                   </div>
                 </div>
                 <span className={`text-sm font-bold font-mono ${getScoreColor(scores.resumeScore)}`}>
@@ -258,7 +273,7 @@ export default function ScoreEnginePage() {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white">Roadmap Milestones</h4>
-                    <span className="text-[10px] text-slate-500">Weight: 10%</span>
+                    <span className="text-[10px] text-slate-500">Weight: 15%</span>
                   </div>
                 </div>
                 <span className={`text-sm font-bold font-mono ${getScoreColor(scores.roadmapProgressPercent)}`}>
@@ -266,7 +281,7 @@ export default function ScoreEnginePage() {
                 </span>
               </div>
 
-              {/* Cert Bonus */}
+              {/* Certifications */}
               <div className="glass-panel border-slate-900 bg-slate-950/40 p-4 rounded-2xl flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
@@ -274,11 +289,11 @@ export default function ScoreEnginePage() {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white">Certifications Ledger</h4>
-                    <span className="text-[10px] text-slate-500">Weight: 10%</span>
+                    <span className="text-[10px] text-slate-500">Weight: 15%</span>
                   </div>
                 </div>
-                <span className="text-sm font-bold font-mono text-emerald-400">
-                  +{scores.certBonus}%
+                <span className={`text-sm font-bold font-mono ${getScoreColor(scores.certsScore)}`}>
+                  {scores.certsScore}%
                 </span>
               </div>
 

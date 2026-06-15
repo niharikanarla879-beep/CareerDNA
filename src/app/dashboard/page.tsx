@@ -5,35 +5,20 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useResume } from '@/lib/resume-context';
 import { targetCareers } from '@/lib/constants';
-import { roleKeywords } from '@/lib/analyzer';
 import { 
   Sparkles, 
   Dna, 
   FileText, 
-  Briefcase, 
-  Map, 
-  GitFork, 
   Award,
   ArrowRight,
-  TrendingUp,
-  UserCheck,
   CheckCircle2,
-  Lock,
-  ChevronRight,
-  Plus,
-  Trash2,
-  Check,
   ShieldAlert,
   Compass,
-  MessageSquare,
-  Bot,
   Video,
   AlertTriangle,
-  Info,
-  Shield,
   Zap,
-  Globe,
-  Star
+  Shield,
+  TrendingUp
 } from 'lucide-react';
 import {
   RadarChart,
@@ -69,7 +54,7 @@ export default function DashboardOverview() {
   const [activeTab, setActiveTab] = useState<'overview' | 'pitch'>('overview');
 
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   const selectedCareer = useMemo(() => {
@@ -125,7 +110,7 @@ export default function DashboardOverview() {
   }, [assessment]);
 
   // Determine visual journey stage dynamically
-  const journeySteps = [
+  const journeySteps = useMemo(() => [
     { title: 'DNA Assessment', desc: 'Personality & Values', page: '/dashboard/assessment', done: !!assessment?.taken },
     { title: 'Resume Scan', desc: 'ATS Parsing Audit', page: '/dashboard/resume-analyzer', done: !!latestResume },
     { title: 'Skill Gaps', desc: 'Missing Keyword Audit', page: '/dashboard/skill-gap', done: !!latestResume },
@@ -134,7 +119,7 @@ export default function DashboardOverview() {
     { title: 'Mock Interview', desc: 'Speech Practice sessions', page: '/dashboard/interview-coach', done: interviewHistory.length > 0 },
     { title: 'CareerDNA Score', desc: 'Readiness Score compiled', page: '/dashboard/score-engine', done: scores.finalDnaScore > 0 },
     { title: 'Job Sourcing', desc: 'CareerDNA Sourcing Ready', page: '/dashboard/job-matching', done: scores.finalDnaScore >= 80 }
-  ];
+  ], [assessment, latestResume, roadmapProgress, projects, interviewHistory, scores]);
 
   const currentJourneyStageIndex = useMemo(() => {
     let lastDoneIndex = -1;
@@ -146,7 +131,7 @@ export default function DashboardOverview() {
       }
     }
     return lastDoneIndex + 1; // Highlight the first incomplete step
-  }, [assessment, latestResume, roadmapProgress, projects, interviewHistory, scores]);
+  }, [journeySteps]);
 
   const handleTargetCareerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setTargetCareerId(e.target.value);
@@ -758,7 +743,7 @@ export default function DashboardOverview() {
                 <span>Redrob Ecosystem Integration Value</span>
               </h4>
               <p className="text-xs text-slate-400 leading-relaxed text-justify">
-                CareerDNA operates as the **AI Career Intelligence Layer for Redrob**. By converting candidates' credentials into a structured **Redrob Readiness Score**, it feeds pre-screened talent metrics directly to Redrob recruiters, shortening interview pipeline overheads by 75%.
+                CareerDNA operates as the **AI Career Intelligence Layer for Redrob**. By converting candidates&apos; credentials into a structured **Redrob Readiness Score**, it feeds pre-screened talent metrics directly to Redrob recruiters, shortening interview pipeline overheads by 75%.
               </p>
             </div>
 

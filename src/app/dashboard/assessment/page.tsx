@@ -2,10 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/lib/auth-context';
 import { useResume } from '@/lib/resume-context';
 import { targetCareers } from '@/lib/constants';
-import { roleKeywords } from '@/lib/analyzer';
 import {
   ArrowLeft,
   Dna,
@@ -16,7 +14,6 @@ import {
   Award,
   Briefcase,
   TrendingUp,
-  MapPin,
   Flame,
   Star,
   Check,
@@ -127,7 +124,6 @@ const careerDatabase: Record<string, Omit<CareerMatchDetails, 'id' | 'name' | 'm
 };
 
 export default function AssessmentPage() {
-  const { user } = useAuth();
   const { assessment, saveAssessment } = useResume();
 
   const [step, setStep] = useState<number>(0);

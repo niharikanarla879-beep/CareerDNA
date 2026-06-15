@@ -1229,6 +1229,30 @@ export const interviewQuestionsDb: Record<
           question: 'What is a SQL JOIN and explain the difference between INNER, LEFT, and OUTER JOINs.',
           idealAnswerKeys: ['inner join match', 'left join all', 'outer join union', 'primary key'],
           suggestedAnswer: 'INNER JOIN returns matching rows. LEFT JOIN returns all left rows plus matching right rows. OUTER JOIN returns all rows.'
+        },
+        {
+          id: 'da-t-b3',
+          question: 'Explain common Excel text functions (LEFT, RIGHT, MID, CONCATENATE, TRIM, FIND) and when you would use them.',
+          idealAnswerKeys: ['text extraction', 'concatenate strings', 'remove spaces', 'trim spaces', 'substring search'],
+          suggestedAnswer: 'LEFT, RIGHT, and MID extract text from specific locations. CONCATENATE or & joins strings, TRIM removes leading/trailing spaces, and FIND locates the position of a substring.'
+        },
+        {
+          id: 'da-t-b4',
+          question: 'What is the order of execution for query clauses in SQL, and how does SELECT relate to WHERE and ORDER BY?',
+          idealAnswerKeys: ['FROM', 'WHERE', 'SELECT', 'ORDER BY', 'execution sequence', 'filtering'],
+          suggestedAnswer: 'SQL clauses execute in the order: FROM/JOIN, WHERE, GROUP BY, HAVING, SELECT, DISTINCT, and ORDER BY. This means filtering in WHERE happens before SELECT.'
+        },
+        {
+          id: 'da-t-b5',
+          question: 'In Power BI, what is the difference between a Calculated Column and a Measure, and when would you use each?',
+          idealAnswerKeys: ['row-by-row context', 'filter context', 'pre-calculated', 'dynamic aggregation', 'DAX memory'],
+          suggestedAnswer: 'Calculated columns are evaluated row-by-row during data refresh, occupying memory. Measures are calculated dynamically on-the-fly based on visual filter contexts.'
+        },
+        {
+          id: 'da-t-b6',
+          question: 'Explain basic SQL aggregation functions and how they handle NULL values.',
+          idealAnswerKeys: ['COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'ignored nulls', 'COUNT(*) vs COUNT(column)'],
+          suggestedAnswer: 'Aggregation functions (SUM, AVG, COUNT, MIN, MAX) summarize a column. Most functions ignore NULL values, except COUNT(*) which counts all rows including NULLs.'
         }
       ],
       intermediate: [
@@ -1243,6 +1267,30 @@ export const interviewQuestionsDb: Record<
           question: 'How do you design a dashboard in Tableau or Power BI to track business KPIs?',
           idealAnswerKeys: ['kpi metric design', 'data connection', 'interactive filters', 'visual hierarchy', 'data refreshing'],
           suggestedAnswer: 'Define KPIs, connect databases, create visual filters, and optimize data refresh schedules.'
+        },
+        {
+          id: 'da-t-i3',
+          question: 'Explain the difference between the WHERE clause and the HAVING clause in SQL.',
+          idealAnswerKeys: ['filter rows before', 'filter groups after', 'aggregate functions', 'group by interaction'],
+          suggestedAnswer: 'WHERE filters raw rows before aggregation, whereas HAVING filters aggregated group results after a GROUP BY clause is processed.'
+        },
+        {
+          id: 'da-t-i4',
+          question: 'Compare a Star Schema against a Snowflake Schema in data modeling, and explain which is preferred for Power BI.',
+          idealAnswerKeys: ['denormalized dimensions', 'normalized tables', 'performance query', 'relationships complexity', 'star schema preferred'],
+          suggestedAnswer: 'Star Schema uses denormalized dimensions directly linked to a fact table, optimizing queries. Snowflake schema normalizes dimensions into multiple tables, increasing joins. Star schema is preferred in Power BI.'
+        },
+        {
+          id: 'da-t-i5',
+          question: 'In Tableau, what is the difference between blue pills (discrete) and green pills (continuous)?',
+          idealAnswerKeys: ['discrete headers', 'continuous axes', 'finite buckets', 'infinite range', 'blue vs green'],
+          suggestedAnswer: 'Blue pills represent discrete data which create headers/buckets in layout grids. Green pills represent continuous data which create axes/lines in charts.'
+        },
+        {
+          id: 'da-t-i6',
+          question: 'Define the Customer Acquisition Cost (CAC) and Lifetime Value (LTV) KPIs, and how you calculate them from raw business tables.',
+          idealAnswerKeys: ['marketing sales spend', 'new customers count', 'average customer lifespan', 'revenue per customer', 'LTV to CAC ratio'],
+          suggestedAnswer: 'CAC is total marketing and sales costs divided by new customers acquired. LTV is average revenue per customer multiplied by customer lifespan. A healthy ratio is 3:1.'
         }
       ],
       advanced: [
@@ -1257,6 +1305,30 @@ export const interviewQuestionsDb: Record<
           question: 'How do you design cohort retention analyses and track business growth trends?',
           idealAnswerKeys: ['cohort segments analysis', 'retention curves metrics', 'user signups dates', 'churn rates calculations'],
           suggestedAnswer: 'Group users by signup date cohorts, calculate weekly active rates, plot retention curves, and analyze churn indicators.'
+        },
+        {
+          id: 'da-t-a3',
+          question: 'Explain how you optimize slow-running SQL queries, and contrast Common Table Expressions (CTEs) against nested subqueries.',
+          idealAnswerKeys: ['explain plan', 'indexes scan', 'avoid nested loops', 'readable CTE', 'materialized views', 'optimizer behavior'],
+          suggestedAnswer: 'Analyze queries using EXPLAIN plans, ensure indices are used on join keys, replace nested loops, and rewrite subqueries as readable CTEs which sometimes help the optimizer build better plans.'
+        },
+        {
+          id: 'da-t-a4',
+          question: 'An e-commerce company notices a 15% drop-off at the payment step. Walk through your analytics strategy to diagnose this issue.',
+          idealAnswerKeys: ['funnel analysis', 'browser device segments', 'payment gateway logs', 'A/B testing anomalies', 'user session recording'],
+          suggestedAnswer: 'Examine conversion funnels segmented by browser/device to identify bugs. Audit payment gateway API logs for error codes, and check recent product checkouts updates.'
+        },
+        {
+          id: 'da-t-a5',
+          question: 'How do you design a tracking plan to collect clean user interaction event data for a new SaaS product?',
+          idealAnswerKeys: ['event schema definition', 'naming conventions', 'properties parameters', 'analytics sdk', 'data governance'],
+          suggestedAnswer: 'Draft an event dictionary specifying naming conventions (e.g. verb-noun style), identify trigger points, define properties (user_id, screen), and establish tracking guidelines.'
+        },
+        {
+          id: 'da-t-a6',
+          question: 'Explain Slowly Changing Dimensions (SCD) Type 1 and Type 2, and their impact on historical reporting.',
+          idealAnswerKeys: ['overwrite values', 'history rows', 'start date end date', 'surrogate key', 'scd type 2'],
+          suggestedAnswer: 'SCD Type 1 overwrites old record values, losing history. SCD Type 2 adds a new row with validation dates (start/end) and a surrogate key, preserving history for trend reporting.'
         }
       ]
     },
@@ -1273,6 +1345,30 @@ export const interviewQuestionsDb: Record<
           question: 'How do you handle cleansing extremely unstructured or messy datasets?',
           idealAnswerKeys: ['null records audits', 'regex formatting rules', 'outliers diagnostics', 'script automation cleaning'],
           suggestedAnswer: 'Run null audits, apply regex rules to format text fields, filter outlier records, and script data updates.'
+        },
+        {
+          id: 'da-h-b3',
+          question: 'How do you handle a situation where a stakeholder requests an analysis urgently, but some key data sets are missing?',
+          idealAnswerKeys: ['stakeholder communication', 'scope management', 'proxy metrics', 'documented assumptions', 'iterative delivery'],
+          suggestedAnswer: 'Explain data constraints to the stakeholder, offer a simplified analysis using proxy metrics, document assumptions clearly, and deliver intermediate insights.'
+        },
+        {
+          id: 'da-h-b4',
+          question: 'Tell me about your experience learning your first Business Intelligence tool (like Tableau or Power BI).',
+          idealAnswerKeys: ['self-guided study', 'portfolio dashboard', 'data connection challenges', 'calculated measures'],
+          suggestedAnswer: 'Describe connecting to Excel datasets, learning to model tables, building charts, structuring layouts, and practicing DAX formulas.'
+        },
+        {
+          id: 'da-h-b5',
+          question: 'Describe a time you discovered an error in your own analysis before presenting the results to stakeholders.',
+          idealAnswerKeys: ['validation check', 'double check queries', 'transparency', 'correcting data', 'lessons learned'],
+          suggestedAnswer: 'Audited query results against raw sums, noticed a duplicate row join issue, corrected the charts, and set up automatic query checks for future runs.'
+        },
+        {
+          id: 'da-h-b6',
+          question: 'How do you check and validate that your SQL queries are producing accurate results?',
+          idealAnswerKeys: ['count validation', 'sample checks', 'limit query tests', 'isolated database runs', 'known benchmarks'],
+          suggestedAnswer: 'Run sample check rows, compare output aggregates against verified base summaries, test subqueries independently, and assert primary key uniqueness.'
         }
       ],
       intermediate: [
@@ -1287,6 +1383,30 @@ export const interviewQuestionsDb: Record<
           question: 'Tell me about a time you disagreed on the definition of a core business KPI.',
           idealAnswerKeys: ['data documentation audit', 'stakeholder alignments', 'metrics calculation testing', 'agreements'],
           suggestedAnswer: 'Audited data schemas, aligned business definitions, tested metric outputs, and documented calculations.'
+        },
+        {
+          id: 'da-h-i3',
+          question: "A business stakeholder asks you to 'look at the data and find anything interesting.' How do you respond?",
+          idealAnswerKeys: ['clarifying business goals', 'define hypotheses', 'prioritize questions', 'structured framework'],
+          suggestedAnswer: 'Schedule a brief call to align on core business questions, define testable hypotheses, establish success metrics, and structure the analysis exploration.'
+        },
+        {
+          id: 'da-h-i4',
+          question: 'How do you prioritize analytical request backlogs coming from two different business teams (e.g. Marketing and Product)?',
+          idealAnswerKeys: ['impact scoring', 'effort estimation', 'revenue alignment', 'stakeholder consensus', 'priority queue'],
+          suggestedAnswer: 'Map requests to business revenue impact and engineering effort. Communicate timelines transparently and run prioritization check-ins.'
+        },
+        {
+          id: 'da-h-i5',
+          question: 'Describe a time you had to explain a complex statistical finding or predictive model output to a non-technical audience.',
+          idealAnswerKeys: ['analogy comparison', 'simple language', 'visual charts', 'focus on business takeaway', 'avoid jargon'],
+          suggestedAnswer: 'Translate calculations into business outcomes, avoid statistical terms (e.g., talk about trends instead of p-values), and use clean charts.'
+        },
+        {
+          id: 'da-h-i6',
+          question: 'How do you handle a situation where you build an executive dashboard, but find that the business team is not using it?',
+          idealAnswerKeys: ['user feedback surveys', 'usability training', 'simplify visual complexity', 'integrate routine alerts'],
+          suggestedAnswer: 'Gather feedback from users to identify blockers, simplify layout grids, run walkthrough sessions, and set up email notifications for key metrics.'
         }
       ],
       advanced: [
@@ -1301,6 +1421,30 @@ export const interviewQuestionsDb: Record<
           question: 'How do you optimize Snowflake data warehouse compute resource expenditures?',
           idealAnswerKeys: ['query warehouses scaling', 'warehouse auto-suspend times', 'sql caching utilization', 'diagnostics tools'],
           suggestedAnswer: 'Tune slow SQL queries, configure auto-suspend triggers, leverage cache systems, and scale computing clusters.'
+        },
+        {
+          id: 'da-h-a3',
+          question: 'Tell me about a time you mentored a junior data analyst. How did you guide them through SQL query optimization?',
+          idealAnswerKeys: ['code review sessions', 'explain query plan', 'indexing coaching', 'collaborative refactoring'],
+          suggestedAnswer: 'Conducted regular code reviews, explained database scan costs, coached them on index utilization, and rewrote query statements collaboratively.'
+        },
+        {
+          id: 'da-h-a4',
+          question: 'How do you handle situations where executive management pressures you to bias data findings to support a pre-determined decision?',
+          idealAnswerKeys: ['data integrity', 'objective metrics', 'transparent methodology', 'presenting scenarios', 'ethical standards'],
+          suggestedAnswer: 'Present the objective findings with absolute transparency, document the statistical methodology, and outline alternative scenarios clearly to remain a neutral guide.'
+        },
+        {
+          id: 'da-h-a5',
+          question: 'How do you establish data governance and security parameters when sharing BI dashboards with external clients?',
+          idealAnswerKeys: ['row-level security', 'data masking encryption', 'access groups', 'compliance validation', 'audit logging'],
+          suggestedAnswer: 'Implement row-level security (RLS) policies, configure access permissions, mask sensitive fields, and monitor usage logs.'
+        },
+        {
+          id: 'da-h-a6',
+          question: 'How do you align multiple department heads on a single source of truth for high-stakes business KPIs?',
+          idealAnswerKeys: ['data definitions dictionary', 'central warehouse tables', 'stakeholder committee', 'metrics standardizations'],
+          suggestedAnswer: 'Draft a unified data dictionary, establish schema models in the central data warehouse, and secure metric definitions approval.'
         }
       ]
     },
@@ -1317,6 +1461,30 @@ export const interviewQuestionsDb: Record<
           question: 'Scenario: An Excel file crashes due to high record size. What options do you take?',
           idealAnswerKeys: ['database query export', 'python script loading', 'sqlite database files', 'power query'],
           suggestedAnswer: 'Import files via Power Query, load records in Pandas notebooks, or query datasets using SQLite.'
+        },
+        {
+          id: 'da-s-b3',
+          question: 'Scenario: An Excel sheet returns a circular reference warning. How do you isolate and resolve it?',
+          idealAnswerKeys: ['circular formulas inspection', 'formulas tab audit', 'trace dependents precedents', 'cell references corrections'],
+          suggestedAnswer: 'Check the circular reference cells list via Excel\'s Formulas tab, trace dependents and precedents paths, and correct cell addresses.'
+        },
+        {
+          id: 'da-s-b4',
+          question: 'Scenario: A SQL query run against a dataset returns zero records, but you know data exists. How do you debug?',
+          idealAnswerKeys: ['check join constraints', 'null columns check', 'where clause filtering limits', 'sample data SELECT *'],
+          suggestedAnswer: 'Run a simple SELECT * LIMIT 5 to see raw formats. Check join parameters, review filters in WHERE clauses, and verify data casing.'
+        },
+        {
+          id: 'da-s-b5',
+          question: 'Scenario: A bar chart in Power BI displays a category named \'Blank\' containing a high sum total. How do you troubleshoot?',
+          idealAnswerKeys: ['missing data relationships', 'referential integrity check', 'null keys in tables', 'filter null records'],
+          suggestedAnswer: 'Inspect table relationships. A \'Blank\' category indicates referential integrity failures where fact rows contain foreign keys missing from the dimension table.'
+        },
+        {
+          id: 'da-s-b6',
+          question: 'Scenario: A pivot table sum doesn\'t match the manually counted sum of the source table rows. What is likely wrong?',
+          idealAnswerKeys: ['text formatting numbers', 'hidden blank spaces', 'value field settings count', 'data cache refresh'],
+          suggestedAnswer: 'Check if some numbers are formatted as text, refresh the pivot table cache, and ensure the value field setting is set to SUM rather than COUNT.'
         }
       ],
       intermediate: [
@@ -1331,6 +1499,30 @@ export const interviewQuestionsDb: Record<
           question: 'Scenario: Business users report inconsistencies across dashboard reports. How do you troubleshoot?',
           idealAnswerKeys: ['data pipeline sync check', 'schema query verification', 'cache flush files', 'data sources audits'],
           suggestedAnswer: 'Verify pipeline updates, inspect query definitions for calculations discrepancies, flush dashboard caches, and check data sources.'
+        },
+        {
+          id: 'da-s-i3',
+          question: 'Scenario: A SQL JOIN returns significantly more rows than are in the left table, skewing metrics. What is the cause and how do you resolve?',
+          idealAnswerKeys: ['many-to-many relationship', 'duplicate join keys', 'aggregation before join', 'distinct key validation'],
+          suggestedAnswer: 'Verify join keys. If key columns contain duplicates, a many-to-many join occurs. Fix by deduplicating join keys or aggregating tables before joining.'
+        },
+        {
+          id: 'da-s-i4',
+          question: 'Scenario: Your weekly dashboard reveals active customer conversion rate dropped by 20% overnight. Walk through your diagnostic steps.',
+          idealAnswerKeys: ['data extraction fail check', 'recent release verify', 'anomaly filters inspection', 'segmentation checks'],
+          suggestedAnswer: 'Confirm that nightly ETL data extracts ran successfully. Check for recent site deployments, and segment conversion rate drop by browser/device.'
+        },
+        {
+          id: 'da-s-i5',
+          question: 'Scenario: A Tableau dashboard takes 15 seconds to render after clicking filters. How do you optimize its speed?',
+          idealAnswerKeys: ['tableau data extracts', 'minimize filters count', 'reduce context filters', 'custom SQL optimization', 'performance recording'],
+          suggestedAnswer: 'Use Tableau Data Extracts instead of live queries, reduce filter counts, optimize custom SQL scripts, and run performance recording to check rendering times.'
+        },
+        {
+          id: 'da-s-i6',
+          question: 'Scenario: The product manager asks you to define and track a new metric for \'Customer Engagement\' using raw event logs. How do you proceed?',
+          idealAnswerKeys: ['session duration metrics', 'key events interactions', 'active days frequency', 'dashboard aggregation'],
+          suggestedAnswer: 'Propose a composite metric (e.g. active session duration, trigger clicks, frequency days), draft SQL queries to aggregate raw event logs, and build a trend dashboard.'
         }
       ],
       advanced: [
@@ -1345,6 +1537,30 @@ export const interviewQuestionsDb: Record<
           question: 'Scenario: Executive reports load too slowly. How do you optimize?',
           idealAnswerKeys: ['summary table aggregation', 'query cache triggers', 'warehouse cluster scaling', 'snowflake materialization views'],
           suggestedAnswer: 'Pre-aggregate metrics in summary tables, build materialized views, scale warehouses, and leverage cached queries.'
+        },
+        {
+          id: 'da-s-a3',
+          question: 'Scenario: A dashboard query with multiple nested subqueries and joins is taking 10 minutes to run. How do you refactor it?',
+          idealAnswerKeys: ['common table expressions', 'temporary tables execution', 'pre-aggregation aggregates', 'partition table scan'],
+          suggestedAnswer: 'Refactor nested logic into CTEs or temporary tables, pre-aggregate metrics in ETL stages, and add indices on partitioned timestamp columns.'
+        },
+        {
+          id: 'da-s-a4',
+          question: 'Scenario: Subscription revenue is flat month-over-month, but user signups have increased by 30%. What areas do you explore?',
+          idealAnswerKeys: ['churn rates analysis', 'subscription package tiers', 'acquisition channels value', 'customer lifetime metrics'],
+          suggestedAnswer: 'Analyze subscriber churn trends, evaluate new signups distribution across tier plans, check pricing discounts impact, and inspect signup acquisition channels.'
+        },
+        {
+          id: 'da-s-a5',
+          question: 'Scenario: A fast-growing SaaS platform needs to restructure its reporting warehouse to support multiple timezones and multi-tenant isolation. How do you model this?',
+          idealAnswerKeys: ['utc timestamps standard', 'tenant id partition', 'star schema dimensional', 'row level security rules'],
+          suggestedAnswer: 'Standardize warehouse columns to UTC, partition database schemas by tenant_id, organize dimensions into a Star Schema, and enforce row-level security policy parameters.'
+        },
+        {
+          id: 'da-s-a6',
+          question: 'Scenario: Your company\'s monthly Snowflake warehouse bill suddenly spikes by 50% month-over-month. How do you audit and control costs?',
+          idealAnswerKeys: ['snowflake query history logs', 'warehouse auto-suspend verify', 'cost attribution tags', 'optimize scan limits'],
+          suggestedAnswer: 'Audit queries history in Snowflake logs to locate heavy queries. Set auto-suspend times on warehouses to 60 seconds, and configure query timeout limits.'
         }
       ]
     }

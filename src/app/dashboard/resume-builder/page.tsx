@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { useResume } from '@/lib/resume-context';
 import { targetCareers } from '@/lib/constants';
 import { 
   ArrowLeft, 
@@ -11,15 +12,14 @@ import {
   Printer, 
   Plus, 
   Trash2, 
-  PlusCircle, 
-  Award,
   Layers, 
-  FileText,
   User,
   Briefcase,
   BookOpen,
   Wrench,
-  Check
+  Loader2,
+  Code,
+  Award
 } from 'lucide-react';
 
 interface ExperienceItem {
@@ -43,92 +43,166 @@ interface SkillItem {
   category: string;
 }
 
-const aiMockContent: Record<string, { summary: string; bullets: string[] }> = {
-  swe: {
-    summary: 'Highly analytical and detail-oriented Software Engineer with 4+ years of experience designing and deploying scalable microservices architectures. Proficient in TypeScript, Node.js, and SQL databases, with a proven track record of optimizing backend performance and driving CI/CD automations.',
-    bullets: [
-      'Engineered a robust REST API service utilizing Node.js and PostgreSQL, decreasing query response times by 35% under peak traffic.',
-      'Architected a containerized CI/CD pipeline using Docker and GitHub Actions, reducing deployment errors by 22%.',
-      'Refactored legacy React state management into modern modular hooks, boosting frontend rendering efficiency by 18%.'
-    ]
-  },
-  frontend: {
-    summary: 'Creative and performance-focused Frontend Developer with 3+ years of expertise crafting responsive, high-speed user interfaces. Expert in React.js, Tailwind CSS, and state management frameworks, dedicated to accessibility compliance and optimizing Core Web Vitals.',
-    bullets: [
-      'Implemented responsive UI templates using React and Tailwind CSS, increasing mobile user conversion rate by 14%.',
-      'Optimized image loading assets and dynamic bundling scripts, improving Google Lighthouse performance score from 72 to 94.',
-      'Integrated unified state stores with Zustand and Context APIs, simplifying API pipelines and removing redundant render loops.'
-    ]
-  },
-  backend: {
-    summary: 'Robust Backend Developer with a deep focus on API architecture, database optimization, and high availability systems. Expert in architecting microservices with Node.js and AWS infrastructure to support millions of user processes.',
-    bullets: [
-      'Designed and deployed an event-driven message queue using Redis and Node.js to handle 10k+ requests per second with minimal fail rates.',
-      'Optimized SQL index models and cache procedures, decreasing query execution latency by 45ms across primary API endpoints.',
-      'Secured network communications by deploying OAuth2 protocols, ensuring full GDPR and SOC2 compliance across microservice clusters.'
-    ]
-  },
-  fullstack: {
-    summary: 'Versatile Full Stack Developer with end-to-end expertise in modern web development frameworks. Highly skilled in frontend styling (React, TypeScript) and robust backend operations (Node.js, databases, Docker), passionate about building seamless user journeys.',
-    bullets: [
-      'Developed and launched a customer dashboard web app using React, Node.js, and MongoDB, scaling user adoption to 50k+ active accounts.',
-      'Engineered GraphQL endpoints alongside REST APIs, reducing network payloads by 30% for improved mobile connectivity.',
-      'Spearheaded technical integrations with Stripe and third-party SaaS APIs, automating client workflows.'
-    ]
-  },
-  da: {
-    summary: 'Data-driven Data Analyst skilled in modeling data warehouses, creating interactive dashboard suites, and extracting strategic insights. Expert in writing complex SQL queries, building Power BI pipelines, and communicating indicators to cross-functional stakeholders.',
-    bullets: [
-      'Uncovered a critical operational bottleneck through audit statistics, saving $12k in monthly supply chain overhead.',
-      'Developed automated ETL reporting suites using Python and Snowflake, reducing manual weekly sheet generation time by 15 hours.',
-      'Designed a suite of executive dashboards in Tableau, tracking client retention, user growth, and core performance indicators.'
-    ]
-  },
-  ds: {
-    summary: 'Insightful Data Scientist with 5+ years of modeling experience applying statistical analysis, machine learning algorithms, and deep neural networks to resolve business challenges. Expert in Python, PyTorch, and cloud-scale data platforms.',
-    bullets: [
-      'Trained and deployed a gradient-boosted recommendation model that boosted user click-through rate (CTR) by 26%.',
-      'Formulated statistical hypothesis frameworks and conducted A/B testing on pricing models, resulting in an estimated 8% revenue uplift.',
-      'Processed massive datasets of 10M+ customer profiles using PySpark and AWS S3, training predictive model pipelines.'
-    ]
-  },
-  ai: {
-    summary: 'Innovative AI Engineer specialized in prompt engineering, agentic workflow architecture, RAG systems, and integrating Large Language Models. Experienced in designing semantic indexes and using Pinecone vector databases.',
-    bullets: [
-      'Architected a Retrieval-Augmented Generation (RAG) assistant using LangChain and OpenAI models, boosting customer query accuracy to 91%.',
-      'Configured fine-tuning pipelines for custom open-source models (LLaMA-3), reducing API invocation costs by 65%.',
-      'Integrated vector search embeddings using Pinecone DB, reducing search execution latency to under 90ms.'
-    ]
-  },
-  ml: {
-    summary: 'Advanced Machine Learning Engineer with hands-on experience designing ML pipelines, training models, and engineering feature databases. Expert in PyTorch, Scikit-Learn, and optimizing MLOps workflows for model hosting.',
-    bullets: [
-      'Trained a computer vision model utilizing PyTorch, achieving a 98.4% validation accuracy on real-time classification feeds.',
-      'Constructed automated feature engineering pipelines, accelerating ML model retraining processes by 3x.',
-      'Deployed model serving endpoints within Docker containers on AWS ECS, ensuring 99.9% availability for critical classification APIs.'
-    ]
-  },
-  pm: {
-    summary: 'Strategic Product Manager with a strong technical background and a record of managing lifecycle scopes from discovery to deployment. Master of agile scrum, wireframing, GTM alignment, and tracking KPI data metrics.',
-    bullets: [
-      'Orchestrated cross-functional teams of design and engineering to launch a chat feature, driving a 20% engagement lift within 30 days.',
-      'Defined product roadmap priorities based on user research surveys, aligning stakeholder expectations across corporate divisions.',
-      'Authored comprehensive PRDs and structured agile backlogs, reducing timeline delivery drift from 6 weeks to under 4 days.'
-    ]
-  },
-  ux: {
-    summary: 'User-centric UX Designer with 4+ years of experience wireframing high-fidelity mockups, leading usability testing, and establishing clean UI design systems. Dedicated to accessibility compliance and empathetic customer journeys.',
-    bullets: [
-      'Redesigned the onboarding user flow using Figma, decreasing user drop-off rate by 35% and streamlining user activations.',
-      'Conducted 25+ remote usability testing interviews, translating empirical findings into actionable interface iterations.',
-      'Built a reusable Figma component system, reducing front-end development implementation loops by 25%.'
-    ]
+
+
+
+const getCachedResponse = (key: string): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(key);
+  } catch (e) {
+    console.warn('Cache read error:', e);
+    return null;
   }
 };
 
+const setCachedResponse = (key: string, value: string) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    console.warn('Cache write error:', e);
+  }
+};
+
+const generateFallbackSummary = (roleName: string, skillsText: string, companiesText: string): string => {
+  const skillsList = skillsText ? skillsText.split(',').map(s => s.trim()) : [];
+  const companiesList = companiesText ? companiesText.split(',').map(c => c.trim()) : [];
+  const roleLower = (roleName || '').toLowerCase();
+  
+  // Data Analyst / Data Scientist
+  if (roleLower.includes('data') || roleLower.includes('analyst') || roleLower.includes('science')) {
+    let summary = `Results-oriented ${roleName || 'Data Analyst'} with hands-on expertise in extracting actionable insights and analyzing complex datasets to drive business decisions. `;
+    if (skillsList.length > 0) {
+      const skillsStr = skillsList.slice(0, 3).join(', ');
+      summary += `Proficient in analytical tools and technologies including ${skillsStr}. `;
+    }
+    if (companiesList.length > 0) {
+      const compStr = companiesList.slice(0, 2).join(' and ');
+      summary += `Demonstrated history of driving data excellence and reporting at ${compStr}. `;
+    } else {
+      summary += `Dedicated to building interactive dashboards, data visualizations, and optimized reporting pipelines. `;
+    }
+    summary += `Proven ability to collaborate across functional teams to deliver data-driven business growth.`;
+    return summary;
+  }
+  
+  // Frontend Developer / UI/UX
+  if (roleLower.includes('front') || roleLower.includes('ui') || roleLower.includes('ux') || roleLower.includes('designer')) {
+    let summary = `Results-oriented ${roleName || 'Frontend Developer'} with hands-on expertise in crafting responsive, high-performance user interfaces and premium user experiences. `;
+    if (skillsList.length > 0) {
+      const skillsStr = skillsList.slice(0, 3).join(', ');
+      summary += `Proficient in key frontend technologies including ${skillsStr}. `;
+    }
+    if (companiesList.length > 0) {
+      const compStr = companiesList.slice(0, 2).join(' and ');
+      summary += `Demonstrated history of driving front-end excellence and visual consistency at ${compStr}. `;
+    } else {
+      summary += `Dedicated to building clean, accessible component libraries and implementing optimized UI/UX design patterns. `;
+    }
+    summary += `Proven ability to collaborate across functional teams to deliver seamless and engaging client-side experiences.`;
+    return summary;
+  }
+  
+  // Backend Developer / Cloud
+  if (roleLower.includes('back') || roleLower.includes('cloud') || roleLower.includes('devops') || roleLower.includes('system')) {
+    let summary = `Results-oriented ${roleName || 'Backend Developer'} with hands-on expertise in architecting scalable backend systems, server-side logic, and database designs. `;
+    if (skillsList.length > 0) {
+      const skillsStr = skillsList.slice(0, 3).join(', ');
+      summary += `Proficient in server technologies and databases including ${skillsStr}. `;
+    }
+    if (companiesList.length > 0) {
+      const compStr = companiesList.slice(0, 2).join(' and ');
+      summary += `Demonstrated history of driving microservices excellence and API scalability at ${compStr}. `;
+    } else {
+      summary += `Dedicated to building secure, maintainable server structures and implementing optimized database queries. `;
+    }
+    summary += `Proven ability to collaborate across functional teams to deliver robust and high-availability systems.`;
+    return summary;
+  }
+
+  // Default / Software Engineer
+  let summary = `Results-oriented ${roleName || 'Software Engineer'} with hands-on expertise in developing high-performance applications and end-to-end software solutions. `;
+  if (skillsList.length > 0) {
+    const skillsStr = skillsList.slice(0, 3).join(', ');
+    summary += `Proficient in key technologies including ${skillsStr}. `;
+  }
+  if (companiesList.length > 0) {
+    const compStr = companiesList.slice(0, 2).join(' and ');
+    summary += `Demonstrated history of driving technical excellence at ${compStr}. `;
+  } else {
+    summary += `Dedicated to building clean, maintainable codebases and implementing scalable software design patterns. `;
+  }
+  summary += `Proven ability to collaborate across functional teams to deliver optimized customer experiences.`;
+  return summary;
+};
+
+const generateFallbackBullet = (roleName: string, title: string, company: string, description: string, skillsList: string[]): string => {
+  const cleanSkills = skillsList.filter(Boolean);
+  const roleLower = (roleName || '').toLowerCase();
+  
+  // Data Analyst / Data Scientist
+  if (roleLower.includes('data') || roleLower.includes('analyst') || roleLower.includes('science')) {
+    const verb = title.toLowerCase().includes('lead') || title.toLowerCase().includes('senior') ? 'Spearheaded' : 'Analyzed';
+    let bullet = `${verb} core datasets and implemented key business intelligence solutions as a ${title} at ${company}. `;
+    if (cleanSkills.length > 0) {
+      bullet += `Leveraged ${cleanSkills.slice(0, 3).join(', ')} to design interactive dashboards, automate reports, and uncover operational insights. `;
+    }
+    if (description.trim().length > 10) {
+      bullet += `Contributed to data strategy goals by resolving reporting bottlenecks and driving analytical standards.`;
+    } else {
+      bullet += `Optimized query efficiency and improved dashboard load times for critical business metrics.`;
+    }
+    return bullet;
+  }
+
+  // Frontend Developer / UI/UX
+  if (roleLower.includes('front') || roleLower.includes('ui') || roleLower.includes('ux') || roleLower.includes('designer')) {
+    const verb = title.toLowerCase().includes('lead') || title.toLowerCase().includes('senior') ? 'Spearheaded' : 'Designed';
+    let bullet = `${verb} user interfaces and implemented key responsive frontend components as a ${title} at ${company}. `;
+    if (cleanSkills.length > 0) {
+      bullet += `Leveraged ${cleanSkills.slice(0, 3).join(', ')} to optimize load speeds, build accessible layouts, and integrate client-side logic. `;
+    }
+    if (description.trim().length > 10) {
+      bullet += `Contributed to design alignment by resolving layout bottlenecks and driving UI engineering standards.`;
+    } else {
+      bullet += `Optimized client-side performance and improved user satisfaction ratings for critical application screens.`;
+    }
+    return bullet;
+  }
+
+  // Backend Developer / Cloud
+  if (roleLower.includes('back') || roleLower.includes('cloud') || roleLower.includes('devops') || roleLower.includes('system')) {
+    const verb = title.toLowerCase().includes('lead') || title.toLowerCase().includes('senior') ? 'Spearheaded' : 'Architected';
+    let bullet = `${verb} core server-side logic and implemented key database/API schema structures as a ${title} at ${company}. `;
+    if (cleanSkills.length > 0) {
+      bullet += `Leveraged ${cleanSkills.slice(0, 3).join(', ')} to build secure endpoints, manage databases, and scale service microservices. `;
+    }
+    if (description.trim().length > 10) {
+      bullet += `Contributed to backend architecture by resolving pipeline bottlenecks and driving scalable code standards.`;
+    } else {
+      bullet += `Optimized database query performance and improved service uptime metrics for critical API flows.`;
+    }
+    return bullet;
+  }
+
+  // Default / Software Engineer
+  const verb = title.toLowerCase().includes('lead') || title.toLowerCase().includes('senior') ? 'Spearheaded' : 'Engineered';
+  let bullet = `${verb} core initiatives and implemented key architecture enhancements as a ${title} at ${company}. `;
+  if (cleanSkills.length > 0) {
+    bullet += `Leveraged ${cleanSkills.slice(0, 3).join(', ')} to design, test, and deploy feature components. `;
+  }
+  if (description.trim().length > 10) {
+    bullet += `Contributed to development goals by resolving bottlenecks and driving engineering standards.`;
+  } else {
+    bullet += `Optimized application response times and improved codebase maintainability for critical modules.`;
+  }
+  return bullet;
+};
 
 export default function ResumeBuilder() {
   const { user } = useAuth();
+  const { targetCareerId, projects, certs } = useResume();
   
   // Resume state
   const [personalInfo, setPersonalInfo] = useState({
@@ -150,37 +224,60 @@ export default function ResumeBuilder() {
   const [targetRole, setTargetRole] = useState('swe');
   const [activeTab, setActiveTab] = useState<'personal' | 'experience' | 'skills' | 'education'>('personal');
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
   const resumeContainerRef = useRef<HTMLDivElement>(null);
+
+  // Synchronize targetRole with context targetCareerId
+  useEffect(() => {
+    if (targetCareerId) {
+      setTimeout(() => {
+        setTargetRole(targetCareerId);
+      }, 0);
+    }
+  }, [targetCareerId]);
 
   // Load saved builder content from local storage
   useEffect(() => {
     if (!user) return;
     
-    // Load pre-populated auth details if empty
-    setPersonalInfo(prev => ({
-      ...prev,
-      name: prev.name || `${user.firstName} ${user.lastName}`,
-      email: prev.email || user.email
-    }));
+    const defaultName = `${user.firstName} ${user.lastName}`;
+    const defaultEmail = user.email;
 
-    try {
-      const saved = localStorage.getItem(`careerdna_builder_resume_${user.id}`);
-      if (saved) {
-        const data = JSON.parse(saved);
-        if (data.personalInfo) setPersonalInfo(data.personalInfo);
-        if (data.summary) setSummary(data.summary);
-        if (data.experience) setExperience(data.experience);
-        if (data.education) setEducation(data.education);
-        if (data.skills) setSkills(data.skills);
-        if (data.template) setTemplate(data.template);
+    setTimeout(() => {
+      setPersonalInfo(prev => ({
+        ...prev,
+        name: prev.name || defaultName,
+        email: prev.email || defaultEmail
+      }));
+
+      try {
+        const saved = localStorage.getItem(`careerdna_builder_resume_${user.id}`);
+        if (saved) {
+          const data = JSON.parse(saved);
+          if (data.personalInfo) setPersonalInfo(data.personalInfo);
+          if (data.summary) setSummary(data.summary);
+          if (data.experience) setExperience(data.experience);
+          if (data.education) setEducation(data.education);
+          if (data.skills) setSkills(data.skills);
+          if (data.template) setTemplate(data.template);
+        }
+      } catch (e) {
+        console.error('Error loading builder resume safely:', e);
       }
-    } catch (e) {
-      console.error('Error loading builder resume safely:', e);
-    }
+    }, 0);
   }, [user]);
 
   // Save changes to local storage
-  const saveResume = (updatedData: any) => {
+  const saveResume = (updatedData: {
+    personalInfo: typeof personalInfo;
+    summary: string;
+    experience: ExperienceItem[];
+    education: EducationItem[];
+    skills: SkillItem[];
+    template: 'classic' | 'minimal' | 'glass';
+  }) => {
     if (!user) return;
     localStorage.setItem(`careerdna_builder_resume_${user.id}`, JSON.stringify(updatedData));
     // Trigger storage event so score on dashboard updates
@@ -202,11 +299,22 @@ export default function ResumeBuilder() {
   // AI Assist Generators
   const triggerAiSummary = async () => {
     setAiGenerating(true);
-    try {
-      const userSkills = skills.map(s => s.name).filter(Boolean).join(', ');
-      const userCompanies = experience.map(exp => exp.company).filter(Boolean).join(', ');
-      const roleName = targetCareers.find(c => c.id === targetRole)?.name || targetRole;
+    setAiError(null);
+    const userSkills = skills.map(s => s.name).filter(Boolean).join(', ');
+    const userCompanies = experience.map(exp => exp.company).filter(Boolean).join(', ');
+    const roleName = targetCareers.find(c => c.id === targetRole)?.name || targetRole;
+    
+    // Check Cache first
+    const cacheKey = `careerdna_cache_summary_${targetRole}_${userSkills.trim().toLowerCase()}_${userCompanies.trim().toLowerCase()}`;
+    const cached = getCachedResponse(cacheKey);
+    if (cached) {
+      setSummary(cached);
+      saveResume({ personalInfo, summary: cached, experience, education, skills, template });
+      setAiGenerating(false);
+      return;
+    }
 
+    try {
       const response = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -224,10 +332,21 @@ export default function ResumeBuilder() {
       }
 
       setSummary(data.text);
+      setCachedResponse(cacheKey, data.text);
       saveResume({ personalInfo, summary: data.text, experience, education, skills, template });
-    } catch (e: any) {
-      console.error(e);
-      alert(e.message || 'Error generating summary. Please make sure GEMINI_API_KEY is configured in your .env.local file.');
+      
+      if (data.isOfflineMode) {
+        setIsOffline(true);
+      } else {
+        setIsOffline(false);
+      }
+    } catch (e) {
+      console.warn('AI summary generation failed, applying graceful fallback:', e);
+      setIsOffline(true);
+      
+      const fallbackSummary = generateFallbackSummary(roleName, userSkills, userCompanies);
+      setSummary(fallbackSummary);
+      saveResume({ personalInfo, summary: fallbackSummary, experience, education, skills, template });
     } finally {
       setAiGenerating(false);
     }
@@ -235,40 +354,79 @@ export default function ResumeBuilder() {
 
   const triggerAiBullets = async (index: number) => {
     setAiGenerating(true);
+    setAiError(null);
+    const roleName = targetCareers.find(c => c.id === targetRole)?.name || targetRole;
     try {
       const expItem = experience[index];
-      const roleName = targetCareers.find(c => c.id === targetRole)?.name || targetRole;
       const userSkills = skills.map(s => s.name).filter(Boolean);
+      const title = expItem.title || 'Developer';
+      const company = expItem.company || 'TechCorp';
+      const description = expItem.description || '';
 
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'generate_bullets',
-          roleName,
-          company: expItem.company || 'TechCorp',
-          title: expItem.title || 'Developer',
-          description: expItem.description || '',
-          skills: userSkills
-        })
-      });
+      // Check Cache first
+      const cacheKey = `careerdna_cache_bullets_${targetRole}_${title.toLowerCase()}_${company.toLowerCase()}_${description.toLowerCase()}_${userSkills.join(',')}`;
+      const cached = getCachedResponse(cacheKey);
+      
+      let bulletText = '';
+      let isOfflineResponse = false;
+      if (cached) {
+        bulletText = cached;
+      } else {
+        const response = await fetch('/api/ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generate_bullets',
+            roleName,
+            company,
+            title,
+            description,
+            skills: userSkills
+          })
+        });
 
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to generate bullet point');
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to generate bullet point');
+        }
+        bulletText = data.text;
+        isOfflineResponse = !!data.isOfflineMode;
+        setCachedResponse(cacheKey, bulletText);
       }
 
       const updatedExp = [...experience];
       const prevDesc = updatedExp[index].description;
       updatedExp[index].description = prevDesc 
-        ? prevDesc.trim() + '\n- ' + data.text
-        : '- ' + data.text;
+        ? prevDesc.trim() + '\n- ' + bulletText
+        : '- ' + bulletText;
         
       setExperience(updatedExp);
       saveResume({ personalInfo, summary, experience: updatedExp, education, skills, template });
-    } catch (e: any) {
-      console.error(e);
-      alert(e.message || 'Error generating bullet point. Please make sure GEMINI_API_KEY is configured in your .env.local file.');
+      
+      if (isOfflineResponse) {
+        setIsOffline(true);
+      } else {
+        setIsOffline(false);
+      }
+    } catch (e) {
+      console.warn('AI bullet generation failed, applying graceful fallback:', e);
+      setIsOffline(true);
+      
+      const expItem = experience[index];
+      const title = expItem.title || 'Developer';
+      const company = expItem.company || 'TechCorp';
+      const description = expItem.description || '';
+      const userSkills = skills.map(s => s.name).filter(Boolean);
+      const fallbackBullet = generateFallbackBullet(roleName, title, company, description, userSkills);
+
+      const updatedExp = [...experience];
+      const prevDesc = updatedExp[index].description;
+      updatedExp[index].description = prevDesc 
+        ? prevDesc.trim() + '\n- ' + fallbackBullet
+        : '- ' + fallbackBullet;
+        
+      setExperience(updatedExp);
+      saveResume({ personalInfo, summary, experience: updatedExp, education, skills, template });
     } finally {
       setAiGenerating(false);
     }
@@ -365,8 +523,35 @@ export default function ResumeBuilder() {
   };
 
   // Export functions
-  const triggerPrint = () => {
-    window.print();
+  const triggerPrint = async () => {
+    setPdfGenerating(true);
+    try {
+      const element = document.getElementById('careerdna-resume-print-sheet');
+      if (!element) {
+        alert('Resume element not found.');
+        setPdfGenerating(false);
+        return;
+      }
+      
+      const html2pdf = (await import('html2pdf.js')).default;
+      
+      const opt = {
+        margin:       0.15,
+        filename:     'Niharika_Narla_Resume.pdf',
+        image:        { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' as const },
+        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+      
+      await html2pdf().from(element).set(opt).save();
+    } catch (e) {
+      console.error('Failed to generate PDF:', e);
+      alert('Failed to generate PDF. Please try standard print window instead.');
+      window.print();
+    } finally {
+      setPdfGenerating(false);
+    }
   };
 
   const exportJSON = () => {
@@ -394,6 +579,12 @@ export default function ResumeBuilder() {
           </Link>
           <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
             <Sparkles className="h-6 w-6 text-indigo-400" /> AI Resume Builder
+            {isOffline && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400 animate-pulse shadow-sm shadow-amber-500/5">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
+                Offline AI Mode
+              </span>
+            )}
           </h1>
           <p className="text-xs text-slate-400 mt-1">
             Build and optimize an ATS-compliant resume. Generate descriptions, customize templates, and download formats.
@@ -409,9 +600,15 @@ export default function ResumeBuilder() {
           </button>
           <button 
             onClick={triggerPrint}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/15 transition-smooth cursor-pointer flex items-center gap-1.5"
+            disabled={pdfGenerating}
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/15 transition-smooth cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Printer className="h-3.5 w-3.5" /> PDF / Print
+            {pdfGenerating ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Printer className="h-3.5 w-3.5" />
+            )}
+            {pdfGenerating ? 'Generating PDF...' : 'PDF / Print'}
           </button>
         </div>
       </div>
@@ -445,13 +642,38 @@ export default function ResumeBuilder() {
               <button
                 onClick={triggerAiSummary}
                 disabled={aiGenerating}
-                className="w-full py-2 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 hover:border-indigo-500/30 text-slate-300 hover:text-white transition-smooth flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="w-full py-2 rounded-xl text-xs font-bold bg-slate-950 border border-slate-800 hover:border-indigo-500/30 text-slate-300 hover:text-white transition-smooth flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Sparkles className="h-3.5 w-3.5 text-indigo-400" /> 
+                {aiGenerating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-400" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+                )}
                 {aiGenerating ? 'AI Writing...' : 'Generate Profile Summary'}
               </button>
             </div>
           </div>
+
+          {/* AI Error Notification Banner */}
+          {!isOffline && aiError && (
+            <div className="glass-panel border-rose-500/20 bg-rose-500/5 p-3.5 rounded-2xl flex items-start gap-2.5 justify-between animate-fade-in relative z-10">
+              <div className="flex gap-2 min-w-0">
+                <Loader2 className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+                <div className="text-[11px] leading-relaxed text-slate-300">
+                  <span className="font-bold text-rose-400 block mb-0.5">AI Engine Busy</span>
+                  {aiError}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAiError(null)}
+                className="text-slate-500 hover:text-white shrink-0 p-0.5 font-bold cursor-pointer text-xs"
+                aria-label="Close alert"
+              >
+                ×
+              </button>
+            </div>
+          )}
 
           {/* Editor Navigation */}
           <div className="flex bg-slate-950 border border-slate-900 rounded-xl p-1 text-xs">
@@ -654,9 +876,15 @@ export default function ResumeBuilder() {
                             <button
                               type="button"
                               onClick={() => triggerAiBullets(idx)}
-                              className="w-full py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white text-[11px] font-bold transition-smooth flex items-center justify-center gap-1 cursor-pointer"
+                              disabled={aiGenerating}
+                              className="w-full py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white text-[11px] font-bold transition-smooth flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <Sparkles className="h-3.5 w-3.5" /> AI Add Bullet
+                              {aiGenerating ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-400" />
+                              ) : (
+                                <Sparkles className="h-3.5 w-3.5" />
+                              )}
+                              {aiGenerating ? 'Adding...' : 'AI Add Bullet'}
                             </button>
                           </div>
                         </div>
@@ -895,6 +1123,30 @@ export default function ResumeBuilder() {
                   </div>
                 )}
 
+                {/* Projects */}
+                {projects && projects.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="font-sans text-[11px] font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-0.5">Key Portfolio Projects</h3>
+                    <div className="space-y-3">
+                      {projects.map(proj => (
+                        <div key={proj.id} className="space-y-1">
+                          <div className="flex justify-between items-start font-sans">
+                            <span className="font-bold text-slate-800">{proj.title}</span>
+                            {proj.tech && <span className="text-[10px] text-slate-500 font-semibold">{proj.tech}</span>}
+                          </div>
+                          {proj.description && <p className="text-slate-700 text-[11px] leading-relaxed text-justify pl-3">{proj.description}</p>}
+                          {(proj.github || proj.demo) && (
+                            <div className="text-[9px] text-indigo-600 font-sans pl-3 flex gap-3">
+                              {proj.github && <span>GitHub: {proj.github}</span>}
+                              {proj.demo && <span>Demo: {proj.demo}</span>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Skills */}
                 {skills.length > 0 && (
                   <div className="space-y-2">
@@ -927,6 +1179,18 @@ export default function ResumeBuilder() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Certifications */}
+                {certs && certs.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-sans text-[11px] font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-0.5">Certifications</h3>
+                    <ul className="list-disc pl-5 space-y-1 text-slate-700 text-[11px]">
+                      {certs.map((cert, index) => (
+                        <li key={index}>{cert}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>
@@ -979,6 +1243,18 @@ export default function ResumeBuilder() {
                       ))}
                     </div>
                   )}
+
+                  {/* Certifications */}
+                  {certs && certs.length > 0 && (
+                    <div className="space-y-3 font-sans">
+                      <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 border-b border-slate-100 pb-1">Certifications</h3>
+                      <ul className="list-disc pl-4 space-y-1 text-slate-850 text-[10.5px]">
+                        {certs.map((cert, index) => (
+                          <li key={index}>{cert}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
 
                 {/* Main Content Column */}
@@ -1007,6 +1283,30 @@ export default function ResumeBuilder() {
                               <p className="text-slate-600 text-justify whitespace-pre-line text-[11px] leading-relaxed pl-1 pt-0.5">
                                 {exp.description}
                               </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Projects */}
+                  {projects && projects.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="font-sans text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Key Projects</h3>
+                      <div className="space-y-3">
+                        {projects.map(proj => (
+                          <div key={proj.id} className="space-y-1">
+                            <div className="flex justify-between items-start">
+                              <span className="font-bold text-slate-900 font-sans">{proj.title}</span>
+                              {proj.tech && <span className="text-[9px] text-slate-400 font-mono font-bold shrink-0">{proj.tech}</span>}
+                            </div>
+                            {proj.description && <p className="text-slate-600 text-justify text-[11px] leading-relaxed pl-1">{proj.description}</p>}
+                            {(proj.github || proj.demo) && (
+                              <div className="text-[9.5px] text-indigo-600 font-sans pl-1 flex gap-3">
+                                {proj.github && <span>GitHub: {proj.github}</span>}
+                                {proj.demo && <span>Demo: {proj.demo}</span>}
+                              </div>
                             )}
                           </div>
                         ))}
@@ -1068,6 +1368,32 @@ export default function ResumeBuilder() {
                   </div>
                 )}
 
+                {/* Projects */}
+                {projects && projects.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5"><Code className="h-4 w-4" /> Key Projects</h3>
+                    <div className="space-y-4">
+                      {projects.map(proj => (
+                        <div key={proj.id} className="p-4 rounded-2xl bg-slate-900/30 border border-slate-900/60 space-y-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className="font-bold text-white text-sm block">{proj.title}</span>
+                              {proj.tech && <span className="text-xs text-indigo-400 font-semibold">{proj.tech}</span>}
+                            </div>
+                          </div>
+                          {proj.description && <p className="text-slate-300 text-[11.5px] leading-relaxed text-justify pl-1">{proj.description}</p>}
+                          {(proj.github || proj.demo) && (
+                            <div className="text-[10px] text-indigo-400 font-mono pl-1 flex gap-3">
+                              {proj.github && <a href={proj.github} target="_blank" rel="noreferrer" className="hover:underline">GitHub</a>}
+                              {proj.demo && <a href={proj.demo} target="_blank" rel="noreferrer" className="hover:underline">Demo</a>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Skills & Education Grid */}
                 <div className="grid md:grid-cols-2 gap-6">
                   {/* Skills block */}
@@ -1101,6 +1427,20 @@ export default function ResumeBuilder() {
                             <span className="font-bold text-white block text-xs">{edu.school}</span>
                             <span className="text-[11px] text-slate-400 block">{edu.degree}</span>
                             <span className="text-[9px] text-slate-500 font-mono block">{edu.dates}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Certifications block */}
+                  {certs && certs.length > 0 && (
+                    <div className="space-y-3 pt-4">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5"><Award className="h-4 w-4" /> Certifications</h3>
+                      <div className="p-4 rounded-2xl bg-slate-900/20 border border-slate-900 space-y-2">
+                        {certs.map((cert, index) => (
+                          <div key={index} className="text-[11.5px] text-slate-300 leading-relaxed font-semibold">
+                            🏆 {cert}
                           </div>
                         ))}
                       </div>

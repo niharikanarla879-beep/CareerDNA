@@ -10,9 +10,6 @@ import {
   Award,
   Plus,
   Trash2,
-  ExternalLink,
-  CheckCircle2,
-  AlertTriangle,
   Code,
   Globe
 } from 'lucide-react';

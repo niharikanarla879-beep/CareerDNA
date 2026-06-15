@@ -7,18 +7,10 @@ import { useResume } from '@/lib/resume-context';
 import {
   ArrowLeft,
   Dna,
-  Sparkles,
-  CheckCircle2,
   AlertTriangle,
-  BookOpen,
   Compass,
-  ArrowRight,
-  TrendingUp,
-  Award,
   Clock,
-  ExternalLink,
-  Flame,
-  ChevronRight
+  ExternalLink
 } from 'lucide-react';
 import { targetCareers } from '@/lib/constants';
 import { roleKeywords } from '@/lib/analyzer';
@@ -29,216 +21,68 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer
 } from 'recharts';
 
-interface ResourceLink {
-  label: string;
-  url: string;
-}
+import { generatePathwayForSkill } from '@/lib/skill-resources';
 
-interface SkillPathway {
-  whyItMatters: string;
-  priorityScore: number; // Out of 100
-  estimatedHours: number;
-  readinessImpact: number; // percentage boost
-  beginnerProject: string;
-  intermediateProject: string;
-  advancedProject: string;
-  resources: {
-    youtube: ResourceLink;
-    coursera: ResourceLink;
-    udemy: ResourceLink;
-    freecodecamp: ResourceLink;
-    roadmap: ResourceLink;
-    geeksforgeeks: ResourceLink;
-    documentation: ResourceLink;
-  };
-}
-
-const comprehensiveSkillPathways: Record<string, SkillPathway> = {
-  'React': {
-    whyItMatters: 'React is the dominant frontend framework powering single-page applications. It handles visual interfaces and dynamic client state.',
-    priorityScore: 95,
-    estimatedHours: 40,
-    readinessImpact: 12,
-    beginnerProject: 'Interactive Todo list with filter tabs and local storage backups.',
-    intermediateProject: 'SaaS Dashboard showcasing responsive grid tiles, custom SVG maps, and state updates.',
-    advancedProject: 'Collaboration canvas editor workspace utilizing websockets and optimistic state models.',
-    resources: {
-      youtube: { label: 'React Tutorial for Beginners (Programming with Mosh)', url: 'https://www.youtube.com/watch?v=SqcY0GlE17s' },
-      coursera: { label: 'Front-End Developer Professional Certificate (Meta)', url: 'https://www.coursera.org/professional-certificates/meta-front-end-developer' },
-      udemy: { label: 'React - The Complete Guide (Maximilian Schwarzmüller)', url: 'https://www.udemy.com/course/react-the-complete-guide-incl-redux/' },
-      freecodecamp: { label: 'Learn React - Full Course for Beginners', url: 'https://www.freecodecamp.org/news/free-react-course-2024/' },
-      roadmap: { label: 'React Roadmap Guide', url: 'https://roadmap.sh/react' },
-      geeksforgeeks: { label: 'ReactJS Tutorials Checklist', url: 'https://www.geeksforgeeks.org/reactjs-tutorials/' },
-      documentation: { label: 'Official React Documentation', url: 'https://react.dev' }
-    }
-  },
-  'Node.js': {
-    whyItMatters: 'Node.js enables JavaScript execution on servers. It powers backend REST APIs, web socket networks, and database query streams.',
-    priorityScore: 92,
-    estimatedHours: 45,
-    readinessImpact: 10,
-    beginnerProject: 'CLI script managing local JSON database operations.',
-    intermediateProject: 'E-commerce API with rate limits, token security, and schema validations.',
-    advancedProject: 'Microservices gateway with JWT auth proxying to localized service nodes.',
-    resources: {
-      youtube: { label: 'Node.js Tutorial for Beginners (Mosh)', url: 'https://www.youtube.com/watch?v=TlB_eWDSMt4' },
-      coursera: { label: 'Server-side Development with NodeJS (HKUST)', url: 'https://www.coursera.org/learn/server-side-nodejs' },
-      udemy: { label: 'Node.js, Express, MongoDB Bootcamp (Jonas Schmedtmann)', url: 'https://www.udemy.com/course/nodejs-express-mongodb-bootcamp/' },
-      freecodecamp: { label: 'Learn Node.js and Express - Course', url: 'https://www.freecodecamp.org/news/free-node-js-course/' },
-      roadmap: { label: 'Backend Developer Roadmap', url: 'https://roadmap.sh/backend' },
-      geeksforgeeks: { label: 'Node.js Tutorial Guide', url: 'https://www.geeksforgeeks.org/nodejs/' },
-      documentation: { label: 'Official Node.js Docs', url: 'https://nodejs.org/en/docs/' }
-    }
-  },
-  'TypeScript': {
-    whyItMatters: 'TypeScript adds typed definitions to JavaScript, eliminating compile bugs, standardizing parameters, and aiding team refactors.',
-    priorityScore: 88,
-    estimatedHours: 25,
-    readinessImpact: 8,
-    beginnerProject: 'Typed mathematical algorithms and validation check libraries.',
-    intermediateProject: 'Strictly-typed state manager for task boards.',
-    advancedProject: 'ORM schema compiler generating typed queries for PostgreSQL.',
-    resources: {
-      youtube: { label: 'TypeScript Tutorial for Beginners (Mosh)', url: 'https://www.youtube.com/watch?v=d56mG7DezGs' },
-      coursera: { label: 'TypeScript for Web Development', url: 'https://www.coursera.org/projects/typescript-web-development' },
-      udemy: { label: 'Understanding TypeScript (Maximilian Schwarzmüller)', url: 'https://www.udemy.com/course/understanding-typescript/' },
-      freecodecamp: { label: 'TypeScript Course for Beginners', url: 'https://www.freecodecamp.org/news/learn-typescript-complete-course/' },
-      roadmap: { label: 'TypeScript Roadmap Guide', url: 'https://roadmap.sh/typescript' },
-      geeksforgeeks: { label: 'TypeScript Tutorial Index', url: 'https://www.geeksforgeeks.org/typescript/' },
-      documentation: { label: 'Official TypeScript Handbook', url: 'https://www.typescriptlang.org/docs/' }
-    }
-  },
-  'SQL': {
-    whyItMatters: 'SQL is the global language for query databases. Essential for retrieving company metrics, joins, and indexing schemas.',
-    priorityScore: 90,
-    estimatedHours: 30,
-    readinessImpact: 10,
-    beginnerProject: 'Local SQLite database managing employee directories.',
-    intermediateProject: 'Complex store queries implementing joins, aggregates, and subqueries.',
-    advancedProject: 'Optimized index table structuring resolving 1M+ query bottlenecks.',
-    resources: {
-      youtube: { label: 'SQL Tutorial for Beginners (Mosh)', url: 'https://www.youtube.com/watch?v=HXV3zeQKqGY' },
-      coursera: { label: 'SQL for Data Science (UC Davis)', url: 'https://www.coursera.org/learn/sql-for-data-science' },
-      udemy: { label: 'The Complete SQL Bootcamp (Jose Portilla)', url: 'https://www.udemy.com/course/the-complete-sql-bootcamp/' },
-      freecodecamp: { label: 'SQL and Databases - Complete Course', url: 'https://www.freecodecamp.org/news/sql-and-databases-full-course/' },
-      roadmap: { label: 'PostgreSQL Roadmap Guide', url: 'https://roadmap.sh/postgresql' },
-      geeksforgeeks: { label: 'SQL Tutorial Handbook', url: 'https://www.geeksforgeeks.org/sql-tutorial/' },
-      documentation: { label: 'PostgreSQL Official Docs', url: 'https://www.postgresql.org/docs/' }
-    }
-  },
-  'AWS': {
-    whyItMatters: 'Amazon Web Services is the largest cloud provider. Required for deploying SaaS servers, databases, and microservices.',
-    priorityScore: 85,
-    estimatedHours: 50,
-    readinessImpact: 10,
-    beginnerProject: 'Host a static portfolio page on S3 behind CloudFront.',
-    intermediateProject: 'Deploy an Express backend on EC2 with RDS database layers.',
-    advancedProject: 'Serverless backend stack on Lambda using API Gateway and DynamoDB.',
-    resources: {
-      youtube: { label: 'AWS Certified Cloud Practitioner Course (FreeCodeCamp)', url: 'https://www.youtube.com/watch?v=SOTamWGuqXs' },
-      coursera: { label: 'AWS Cloud Solutions Architect Specialization', url: 'https://www.coursera.org/specializations/aws-cloud-solutions-architect' },
-      udemy: { label: 'AWS Certified Solutions Architect Associate (Stephane Maarek)', url: 'https://www.udemy.com/course/aws-certified-solutions-architect-associate-saa-c03/' },
-      freecodecamp: { label: 'AWS Solutions Architect SAA-C03 Course', url: 'https://www.freecodecamp.org/news/aws-certified-solutions-architect-associate-study-course/' },
-      roadmap: { label: 'AWS Cloud Roadmap', url: 'https://roadmap.sh/aws' },
-      geeksforgeeks: { label: 'AWS Tutorial Guide', url: 'https://www.geeksforgeeks.org/aws-tutorial/' },
-      documentation: { label: 'Official AWS Documentation', url: 'https://docs.aws.amazon.com/' }
-    }
-  },
-  'Docker': {
-    whyItMatters: 'Docker containerizes code blocks so applications deploy identically across developer sandboxes and live cloud hosts.',
-    priorityScore: 80,
-    estimatedHours: 20,
-    readinessImpact: 8,
-    beginnerProject: 'Containerize a basic Node.js backend using a Dockerfile.',
-    intermediateProject: 'Multi-container network compiling web nodes and database assets with Docker Compose.',
-    advancedProject: 'Production compose setup featuring load balancers, database replica slots, and config vaults.',
-    resources: {
-      youtube: { label: 'Docker Tutorial for Beginners (Programming with Mosh)', url: 'https://www.youtube.com/watch?v=pTFZFxd4hOI' },
-      coursera: { label: 'Docker for Beginners (Coursera Project)', url: 'https://www.coursera.org/projects/docker-beginners' },
-      udemy: { label: 'Docker and Kubernetes: The Complete Guide (Stephen Grider)', url: 'https://www.udemy.com/course/docker-and-kubernetes-the-complete-guide/' },
-      freecodecamp: { label: 'Docker Course for Beginners', url: 'https://www.freecodecamp.org/news/learn-docker-complete-course/' },
-      roadmap: { label: 'Docker Roadmap Checklist', url: 'https://roadmap.sh/docker' },
-      geeksforgeeks: { label: 'Docker Tutorial Index', url: 'https://www.geeksforgeeks.org/docker/' },
-      documentation: { label: 'Official Docker Reference Docs', url: 'https://docs.docker.com/' }
-    }
-  },
-  'System Design': {
-    whyItMatters: 'System Design covers the architecture of scalable distributed systems. Needed to build robust databases and prevent latency outages.',
-    priorityScore: 90,
-    estimatedHours: 60,
-    readinessImpact: 14,
-    beginnerProject: 'Design diagram schema mapping three-tier web application servers.',
-    intermediateProject: 'Architect a chat system layout supporting 10,000 active users with load balancers.',
-    advancedProject: 'Design a distributed video streaming platform handling millions of daily uploads and cache distributions.',
-    resources: {
-      youtube: { label: 'System Design for Beginners (ByteByteGo)', url: 'https://www.youtube.com/watch?v=i53Gi_K397I' },
-      coursera: { label: 'Software Design and Architecture (Alberta)', url: 'https://www.coursera.org/specializations/software-design-architecture' },
-      udemy: { label: 'Pragmatic System Design (Udemy)', url: 'https://www.udemy.com/course/pragmatic-system-design/' },
-      freecodecamp: { label: 'System Design Course for Developers', url: 'https://www.freecodecamp.org/news/systems-design-course/' },
-      roadmap: { label: 'System Design Roadmap', url: 'https://roadmap.sh/system-design' },
-      geeksforgeeks: { label: 'System Design Tutorial Guide', url: 'https://www.geeksforgeeks.org/system-design-tutorial/' },
-      documentation: { label: 'System Design Primer Repository', url: 'https://github.com/donnemartin/system-design-primer' }
-    }
-  },
-  'Python': {
-    whyItMatters: 'Python is the core language for Data Science, Machine Learning, and AI. Its syntax is clean and optimized for data libraries.',
-    priorityScore: 95,
-    estimatedHours: 30,
-    readinessImpact: 12,
-    beginnerProject: 'CLI math calculators and structured text parsing scripts.',
-    intermediateProject: 'Local directory file manager storing parsed data inside SQL tables.',
-    advancedProject: 'REST API wrapper service compiling custom machine learning model classifications.',
-    resources: {
-      youtube: { label: 'Python Tutorial for Beginners (Mosh)', url: 'https://www.youtube.com/watch?v=_uQrJ0TkZlc' },
-      coursera: { label: 'Python for Everybody Specialization (Michigan)', url: 'https://www.coursera.org/specializations/python' },
-      udemy: { label: '100 Days of Code: Complete Python Bootcamp (Angela Yu)', url: 'https://www.udemy.com/course/100-days-of-code/' },
-      freecodecamp: { label: 'Learn Python - Full Course for Beginners', url: 'https://www.freecodecamp.org/news/learn-python-full-course/' },
-      roadmap: { label: 'Python Developer Roadmap', url: 'https://roadmap.sh/python' },
-      geeksforgeeks: { label: 'Python Programming Language Guide', url: 'https://www.geeksforgeeks.org/python-programming-language/' },
-      documentation: { label: 'Official Python Documentation', url: 'https://docs.python.org/3/' }
-    }
-  },
-  'LLMs': {
-    whyItMatters: 'Large Language Models power AI agents. Crucial to understand fine-tuning, embeddings, and prompt structures.',
-    priorityScore: 90,
-    estimatedHours: 35,
-    readinessImpact: 10,
-    beginnerProject: 'API interface wrapper calling OpenAI model checkpoints.',
-    intermediateProject: 'Prompt testing sandbox evaluating accuracy variations across models.',
-    advancedProject: 'Fine-tuned LLM classifier deploying custom dataset criteria.',
-    resources: {
-      youtube: { label: 'Generative AI with Large Language Models Course (DeepLearning)', url: 'https://www.youtube.com/watch?v=U3dGsnE7l3c' },
-      coursera: { label: 'Generative AI with LLMs (DeepLearning.AI)', url: 'https://www.coursera.org/learn/generative-ai-with-llms' },
-      udemy: { label: 'Generative AI & LLM Bootcamp (Udemy)', url: 'https://www.udemy.com/course/generative-ai-llm-bootcamp/' },
-      freecodecamp: { label: 'LangChain and LLM Course for Beginners', url: 'https://www.freecodecamp.org/news/langchain-llms-course/' },
-      roadmap: { label: 'AI Engineer Roadmap', url: 'https://roadmap.sh/ai-engineer' },
-      geeksforgeeks: { label: 'Large Language Models (LLM) Reference', url: 'https://www.geeksforgeeks.org/large-language-models-llms/' },
-      documentation: { label: 'HuggingFace Transformers Docs', url: 'https://huggingface.co/docs/transformers/index' }
-    }
-  },
-  'Figma': {
-    whyItMatters: 'Figma is the industry standard UI/UX design tool. Essential for wireframing, collaborative prototyping, and design system component building.',
-    priorityScore: 92,
-    estimatedHours: 25,
-    readinessImpact: 12,
-    beginnerProject: 'Basic mockup screens mapping profile headers.',
-    intermediateProject: 'High-fidelity mobile UI checkout screens using Figma auto-layouts and components.',
-    advancedProject: 'Interactive prototype mapping responsive sidebar grids with dark/light themes.',
-    resources: {
-      youtube: { label: 'Figma UI/UX Design Tutorial (FreeCodeCamp)', url: 'https://www.youtube.com/watch?v=c9Wg6RY_TgpU' },
-      coursera: { label: 'Google UX Design Professional Certificate', url: 'https://www.coursera.org/professional-certificates/google-ux-design' },
-      udemy: { label: 'Figma UI/UX Masterclass (Udemy)', url: 'https://www.udemy.com/course/figma-uiux-masterclass/' },
-      freecodecamp: { label: 'Learn Figma for Beginners Course', url: 'https://www.freecodecamp.org/news/learn-figma-full-course/' },
-      roadmap: { label: 'UX Design Roadmap Guide', url: 'https://roadmap.sh/ux' },
-      geeksforgeeks: { label: 'Figma Interface Design Reference', url: 'https://www.geeksforgeeks.org/figma/' },
-      documentation: { label: 'Official Figma Help Center', url: 'https://help.figma.com/hc/en-us' }
-    }
+const getProviderIcon = (provider: string) => {
+  switch (provider) {
+    case 'YouTube':
+      return (
+        <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-rose-500/10 text-rose-500 shrink-0">
+          <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+            <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.518 3.545 12 3.545 12 3.545s-7.518 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.87.508 9.388.508 9.388.508s7.518 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+          </svg>
+        </span>
+      );
+    case 'Coursera':
+      return (
+        <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 font-extrabold text-[11px] shrink-0 border border-blue-500/20 font-mono">
+          CO
+        </span>
+      );
+    case 'Udemy':
+      return (
+        <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-purple-500/10 text-purple-400 font-extrabold text-[11px] shrink-0 border border-purple-500/20 font-mono">
+          UD
+        </span>
+      );
+    case 'freeCodeCamp':
+      return (
+        <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 font-extrabold text-[11px] shrink-0 border border-emerald-500/20 font-mono">
+          FC
+        </span>
+      );
+    case 'Roadmap.sh':
+      return (
+        <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 shrink-0 border border-amber-500/20">
+          <Compass className="w-4 h-4" />
+        </span>
+      );
+    case 'GeeksforGeeks':
+      return (
+        <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-green-500/10 text-green-400 font-extrabold text-[11px] shrink-0 border border-green-500/20 font-mono">
+          GF
+        </span>
+      );
+    default:
+      return (
+        <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-500/10 text-slate-400 shrink-0 border border-slate-500/20">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+        </span>
+      );
   }
 };
+
+interface SkillKeyword {
+  name: string;
+  category: string;
+  isPrimary: boolean;
+  synonyms: string[];
+}
 
 export default function SkillGap() {
   const { user } = useAuth();
@@ -247,7 +91,7 @@ export default function SkillGap() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   const currentSkills = useMemo(() => {
@@ -284,12 +128,12 @@ export default function SkillGap() {
 
   // Match and Gaps list computations
   const { matchedSkills, missingSkills, foundationalGaps, professionalGaps, strategicGaps } = useMemo(() => {
-    const required = roleKeywords[targetCareer] || roleKeywords['swe'];
-    const matched: any[] = [];
-    const missing: any[] = [];
-    const foundational: any[] = [];
-    const professional: any[] = [];
-    const strategic: any[] = [];
+    const required = (roleKeywords[targetCareer] || roleKeywords['swe']) as SkillKeyword[];
+    const matched: SkillKeyword[] = [];
+    const missing: SkillKeyword[] = [];
+    const foundational: SkillKeyword[] = [];
+    const professional: SkillKeyword[] = [];
+    const strategic: SkillKeyword[] = [];
 
     const lowerCurrent = currentSkills.map(s => s.toLowerCase());
 
@@ -339,9 +183,10 @@ export default function SkillGap() {
   // Sync selected gap skill
   useEffect(() => {
     if (missingSkills.length > 0) {
-      setSelectedGapSkill(missingSkills[0].name);
+      const firstSkillName = missingSkills[0].name;
+      setTimeout(() => setSelectedGapSkill(firstSkillName), 0);
     } else {
-      setSelectedGapSkill(null);
+      setTimeout(() => setSelectedGapSkill(null), 0);
     }
   }, [missingSkills]);
 
@@ -349,11 +194,7 @@ export default function SkillGap() {
     setTargetCareerId(e.target.value);
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-emerald-400 border-emerald-500/20';
-    if (score >= 50) return 'text-amber-400 border-amber-500/20';
-    return 'text-rose-400 border-rose-500/20';
-  };
+
 
   if (!user) return null;
 
@@ -397,24 +238,7 @@ export default function SkillGap() {
 
   // Active pathway metadata resolver
   const activePathway = selectedGapSkill
-    ? comprehensiveSkillPathways[selectedGapSkill] || {
-      whyItMatters: `It is a core technical requirement and a target skill listed in the guidelines for ${targetCareers.find(c => c.id === targetCareer)?.name}.`,
-      priorityScore: 75,
-      estimatedHours: 25,
-      readinessImpact: 6,
-      beginnerProject: `Create a simple local codebase utilizing ${selectedGapSkill} syntax functions.`,
-      intermediateProject: `Build an integration app utilizing ${selectedGapSkill} tools.`,
-      advancedProject: `Compile a production ready workflow featuring ${selectedGapSkill} scalability modules.`,
-      resources: {
-        youtube: { label: `Complete ${selectedGapSkill} Playlists`, url: 'https://youtube.com' },
-        coursera: { label: `${selectedGapSkill} Foundations course`, url: 'https://coursera.org' },
-        udemy: { label: `${selectedGapSkill} Complete Masterclass`, url: 'https://udemy.com' },
-        freecodecamp: { label: `Learn ${selectedGapSkill} - Full Course`, url: 'https://freecodecamp.org' },
-        roadmap: { label: `${selectedGapSkill} Roadmap Guide`, url: 'https://roadmap.sh' },
-        geeksforgeeks: { label: `${selectedGapSkill} Tutorials Handbook`, url: 'https://geeksforgeeks.org' },
-        documentation: { label: `Official ${selectedGapSkill} Documentation`, url: 'https://google.com' }
-      }
-    }
+    ? generatePathwayForSkill(selectedGapSkill)
     : null;
 
   return (
@@ -643,26 +467,48 @@ export default function SkillGap() {
               {/* Direct clickable resources list */}
               <div className="space-y-3 relative z-10 pt-2">
                 <h4 className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Curated Clickable Resources</h4>
-                <div className="space-y-2">
-                  {[
-                    { type: 'YouTube Playlist', val: activePathway.resources.youtube },
-                    { type: 'Coursera Syllabus', val: activePathway.resources.coursera },
-                    { type: 'Udemy Course', val: activePathway.resources.udemy },
-                    { type: 'FreeCodeCamp Core', val: activePathway.resources.freecodecamp },
-                    { type: 'Roadmap.sh Blueprint', val: activePathway.resources.roadmap },
-                    { type: 'GeeksforGeeks Guide', val: activePathway.resources.geeksforgeeks },
-                    { type: 'Official Documentation', val: activePathway.resources.documentation }
-                  ].map((res, i) => (
+                <div className="space-y-2.5">
+                  {activePathway.resources.map((res, i) => (
                     <a 
                       key={i}
-                      href={res.val.url} 
+                      href={res.url} 
                       target="_blank" 
                       rel="noreferrer"
-                      className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-900 hover:border-indigo-500/40 text-xs flex justify-between items-center group transition-smooth"
+                      className="w-full p-3.5 rounded-xl bg-slate-950 border border-slate-900 hover:border-indigo-500/40 text-xs flex gap-3.5 items-center group transition-smooth"
                     >
-                      <div className="min-w-0 flex-1 pr-2">
-                        <span className="text-[9px] text-indigo-400 font-bold block font-mono uppercase leading-none">{res.type}</span>
-                        <span className="text-slate-300 font-bold block truncate mt-1 text-[11px] group-hover:text-white transition-smooth">{res.val.label}</span>
+                      {getProviderIcon(res.provider)}
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-1.5 justify-between">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] text-indigo-400 font-extrabold font-mono uppercase tracking-wider leading-none">{res.provider}</span>
+                            <span className="text-slate-600 font-mono text-[9px]">•</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
+                              res.isFree ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            }`}>
+                              {res.isFree ? 'FREE' : 'PAID'}
+                            </span>
+                            <span className="text-slate-600 font-mono text-[9px]">•</span>
+                            <span className={`text-[9px] font-bold ${
+                              res.difficulty === 'Beginner' ? 'text-emerald-400' :
+                              res.difficulty === 'Intermediate' ? 'text-amber-400' : 'text-rose-400'
+                            }`}>
+                              {res.difficulty}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-[9px] font-bold text-amber-400 bg-amber-500/5 px-1.5 py-0.5 rounded border border-amber-500/10 shrink-0">
+                            <span>★</span>
+                            <span>{res.qualityScore.toFixed(1)}</span>
+                          </div>
+                        </div>
+                        <span className="text-slate-200 font-bold block leading-snug group-hover:text-white transition-smooth text-[11px] truncate">
+                          {res.title}
+                        </span>
+                        {res.duration && (
+                          <div className="text-[9px] text-slate-500 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-600" />
+                            <span>Estimated Duration: {res.duration}</span>
+                          </div>
+                        )}
                       </div>
                       <ExternalLink className="h-3.5 w-3.5 text-slate-500 group-hover:text-indigo-400 shrink-0 transition-smooth" />
                     </a>

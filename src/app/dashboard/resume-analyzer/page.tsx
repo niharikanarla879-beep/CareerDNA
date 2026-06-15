@@ -14,10 +14,8 @@ import {
   Briefcase, 
   FileUp, 
   Sparkles,
-  TrendingUp,
   BadgeAlert,
   BadgeCheck,
-  ChevronRight,
   Info,
   Check,
   Printer,
@@ -25,29 +23,18 @@ import {
 } from 'lucide-react';
 import { analyzeResume } from '@/lib/analyzer';
 import { useAuth } from '@/lib/auth-context';
-import { useResume } from '@/lib/resume-context';
+import { useResume, ResumeHistoryItem } from '@/lib/resume-context';
 import { targetCareers } from '@/lib/constants';
 
-interface CareerMockData {
-  score: number;
-  keywordMatch: number;
-  formatting: number;
-  experience: number;
-  skillsCoverage: number;
-  education: number;
-  foundKeywords: string[];
-  missingKeywords: string[];
-  missingSkillsHigh: string[];
-  missingSkillsMedium: string[];
-  suggestions: {
-    category: 'Formatting' | 'Content' | 'Action Verbs';
-    text: string;
-    impact: 'High' | 'Medium' | 'Low';
-  }[];
-  detectedSkills?: string[];
-  strengths?: string[];
-  weaknesses?: string[];
-}
+const loadingSteps = [
+  'Initializing secure document sandbox...',
+  'Extracting raw text from document structure...',
+  'Performing semantic parsing on headers & sections...',
+  'Cross-referencing work experience dates and impact metrics...',
+  'Detecting primary and secondary skill keywords...',
+  'Comparing profile with target career benchmarks...',
+  'Synthesizing score and compiling recommendations...'
+];
 export default function ResumeAnalyzer() {
   const { user } = useAuth();
   const { resumeHistory, addResumeToHistory, deleteResumeFromHistory } = useResume();
@@ -66,8 +53,8 @@ export default function ResumeAnalyzer() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load history item handler
-  const loadHistoryItem = (item: any) => {
-    setFile({ name: item.filename, size: 0, type: 'application/pdf' } as any);
+  const loadHistoryItem = (item: ResumeHistoryItem) => {
+    setFile({ name: item.filename, size: 0, type: 'application/pdf' } as unknown as File);
     setTargetCareer(item.roleId);
     setExtractedText(item.text);
     textFetchedRef.current = true;
@@ -78,7 +65,7 @@ export default function ResumeAnalyzer() {
   useEffect(() => {
     if (phase === 'results' && extractedText && user) {
       const activeResult = analyzeResume(extractedText, targetCareer);
-      const isDuplicate = resumeHistory.some((item: any) => item.text === extractedText && item.roleId === targetCareer);
+      const isDuplicate = resumeHistory.some((item: ResumeHistoryItem) => item.text === extractedText && item.roleId === targetCareer);
       
       if (!isDuplicate) {
         addResumeToHistory(
@@ -91,15 +78,7 @@ export default function ResumeAnalyzer() {
     }
   }, [phase, extractedText, targetCareer, user, file, resumeHistory, addResumeToHistory]);
 
-  const loadingSteps = [
-    'Initializing secure document sandbox...',
-    'Extracting raw text from document structure...',
-    'Performing semantic parsing on headers & sections...',
-    'Cross-referencing work experience dates and impact metrics...',
-    'Detecting primary and secondary skill keywords...',
-    'Comparing profile with target career benchmarks...',
-    'Synthesizing score and compiling recommendations...'
-  ];
+
 
   // Upload handler
   const handleDrag = (e: React.DragEvent) => {
@@ -170,8 +149,9 @@ export default function ResumeAnalyzer() {
       }
       setExtractedText(data.text || ' ');
       textFetchedRef.current = true;
-    } catch (err: any) {
-      alert(err.message || 'An error occurred while uploading. Please check the file formatting.');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred while uploading. Please check the file formatting.';
+      alert(errorMsg);
       setPhase('upload');
     }
   };
@@ -180,7 +160,7 @@ export default function ResumeAnalyzer() {
     if (phase !== 'analyzing') return;
 
     if (loadingStep === loadingSteps.length - 1 && extractedText) {
-      setPhase('results');
+      setTimeout(() => setPhase('results'), 0);
       return;
     }
 
@@ -191,7 +171,7 @@ export default function ResumeAnalyzer() {
         } else {
           if (textFetchedRef.current) {
             clearInterval(interval);
-            setPhase('results');
+            setTimeout(() => setPhase('results'), 0);
           }
           return prev;
         }
@@ -456,7 +436,7 @@ Report compiled by CareerDNA AI Analyst Sandbox
                   <span className="text-[10px] text-slate-500 font-mono">{resumeHistory.length} Saved</span>
                 </div>
                 <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
-                  {resumeHistory.map((item: any) => (
+                  {resumeHistory.map((item: ResumeHistoryItem) => (
                     <div
                       key={item.id}
                       className="w-full p-2.5 rounded-xl bg-slate-900/30 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/30 transition-smooth flex items-center justify-between gap-2 text-xs group"
@@ -913,7 +893,7 @@ Report compiled by CareerDNA AI Analyst Sandbox
                     <Sparkles className="h-3.5 w-3.5 text-amber-300" /> Improvement Boost
                   </h4>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Implementing the primary 3 recommendations list under the <strong className="text-slate-300">"Improvement Actions"</strong> tab is projected to increase this resume's score to <strong className="text-teal-400">{(currentResult.score + 14).toString()}/100</strong>.
+                    Implementing the primary 3 recommendations list under the <strong className="text-slate-300">&quot;Improvement Actions&quot;</strong> tab is projected to increase this resume&apos;s score to <strong className="text-teal-400">{(currentResult.score + 14).toString()}/100</strong>.
                   </p>
                 </div>
               </div>
