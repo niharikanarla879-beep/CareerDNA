@@ -4,12 +4,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useResume } from '@/lib/resume-context';
+import { useToast } from '@/lib/toast-context';
 import { targetCareers } from '@/lib/constants';
 import { 
   ArrowLeft, 
   Sparkles, 
   Download, 
-  Printer, 
   Plus, 
   Trash2, 
   Layers, 
@@ -203,6 +203,7 @@ const generateFallbackBullet = (roleName: string, title: string, company: string
 export default function ResumeBuilder() {
   const { user } = useAuth();
   const { targetCareerId, projects, certs } = useResume();
+  const { showToast } = useToast();
   
   // Resume state
   const [personalInfo, setPersonalInfo] = useState({
@@ -528,40 +529,78 @@ export default function ResumeBuilder() {
     try {
       const element = document.getElementById('careerdna-resume-print-sheet');
       if (!element) {
-        alert('Resume element not found.');
+        showToast('Resume element not found.', 'error');
         setPdfGenerating(false);
         return;
       }
       
-      const html2pdf = (await import('html2pdf.js')).default;
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
+
+      // Save original styles to restore them later
+      const originalWidth = element.style.width;
+      const originalMinHeight = element.style.minHeight;
+      const originalTransform = element.style.transform;
+      const originalTransformOrigin = element.style.transformOrigin;
+      const originalMaxWidth = element.style.maxWidth;
+
+      // Force standard desktop A4 resolution for the snapshot layout
+      element.style.width = '794px';
+      element.style.minHeight = '1123px';
+      element.style.transform = 'none';
+      element.style.transformOrigin = 'unset';
+      element.style.maxWidth = 'none';
+
+      // Brief delay to allow layout recalculation
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: template === 'glass' ? '#020617' : '#ffffff'
+      });
+
+      // Restore original styles
+      element.style.width = originalWidth;
+      element.style.minHeight = originalMinHeight;
+      element.style.transform = originalTransform;
+      element.style.transformOrigin = originalTransformOrigin;
+      element.style.maxWidth = originalMaxWidth;
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 210; // A4 size width in mm
+      const pageHeight = 297; // A4 size height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
-      const opt = {
-        margin:       0.15,
-        filename:     'Niharika_Narla_Resume.pdf',
-        image:        { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' as const },
-        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
-      };
-      
-      await html2pdf().from(element).set(opt).save();
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // Add first page
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Add remaining pages if content exceeds A4 height
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const pdfName = personalInfo.name 
+        ? `${personalInfo.name.trim().replace(/\s+/g, '_')}_Resume.pdf` 
+        : 'Niharika_Narla_Resume.pdf';
+
+      pdf.save(pdfName);
+      showToast('Resume PDF downloaded successfully', 'success');
     } catch (e) {
       console.error('Failed to generate PDF:', e);
-      alert('Failed to generate PDF. Please try standard print window instead.');
-      window.print();
+      showToast('Failed to generate PDF.', 'error');
     } finally {
       setPdfGenerating(false);
     }
-  };
-
-  const exportJSON = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ personalInfo, summary, experience, education, skills }, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `${personalInfo.name.replace(/\s+/g, '_')}_resume.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
   };
 
   if (!user) return null;
@@ -579,12 +618,6 @@ export default function ResumeBuilder() {
           </Link>
           <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
             <Sparkles className="h-6 w-6 text-indigo-400" /> AI Resume Builder
-            {isOffline && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400 animate-pulse shadow-sm shadow-amber-500/5">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
-                Offline AI Mode
-              </span>
-            )}
           </h1>
           <p className="text-xs text-slate-400 mt-1">
             Build and optimize an ATS-compliant resume. Generate descriptions, customize templates, and download formats.
@@ -593,22 +626,16 @@ export default function ResumeBuilder() {
 
         <div className="flex gap-2">
           <button 
-            onClick={exportJSON}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-smooth cursor-pointer flex items-center gap-1.5"
-          >
-            <Download className="h-3.5 w-3.5" /> Export JSON
-          </button>
-          <button 
             onClick={triggerPrint}
             disabled={pdfGenerating}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/15 transition-smooth cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/15 transition-smooth cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {pdfGenerating ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Printer className="h-3.5 w-3.5" />
+              <Download className="h-3.5 w-3.5" />
             )}
-            {pdfGenerating ? 'Generating PDF...' : 'PDF / Print'}
+            {pdfGenerating ? 'Generating PDF...' : 'Download Resume (.pdf)'}
           </button>
         </div>
       </div>
@@ -625,7 +652,7 @@ export default function ResumeBuilder() {
             
             <div className="space-y-3">
               <div>
-                <label className="block text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Target AI Role Mapping</label>
+                <label className="block text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Target Career Profile</label>
                 <select
                   value={targetRole}
                   onChange={(e) => setTargetRole(e.target.value)}
@@ -1188,7 +1215,7 @@ export default function ResumeBuilder() {
                     <h3 className="font-sans text-[11px] font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-0.5">Certifications</h3>
                     <ul className="list-disc pl-5 space-y-1 text-slate-700 text-[11px]">
                       {certs.map((cert, index) => (
-                        <li key={index}>{cert}</li>
+                        <li key={index}>{typeof cert === 'string' ? cert : cert.name}</li>
                       ))}
                     </ul>
                   </div>
@@ -1250,7 +1277,7 @@ export default function ResumeBuilder() {
                       <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 border-b border-slate-100 pb-1">Certifications</h3>
                       <ul className="list-disc pl-4 space-y-1 text-slate-850 text-[10.5px]">
                         {certs.map((cert, index) => (
-                          <li key={index}>{cert}</li>
+                          <li key={index}>{typeof cert === 'string' ? cert : cert.name}</li>
                         ))}
                       </ul>
                     </div>
@@ -1440,7 +1467,7 @@ export default function ResumeBuilder() {
                       <div className="p-4 rounded-2xl bg-slate-900/20 border border-slate-900 space-y-2">
                         {certs.map((cert, index) => (
                           <div key={index} className="text-[11.5px] text-slate-300 leading-relaxed font-semibold">
-                            🏆 {cert}
+                            🏆 {typeof cert === 'string' ? cert : cert.name}
                           </div>
                         ))}
                       </div>

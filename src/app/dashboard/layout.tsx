@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { PresentationMode } from '@/components/presentation-mode';
 import {
   Dna,
   LayoutDashboard,
@@ -16,7 +17,6 @@ import {
   Menu,
   X,
   Loader2,
-  ShieldAlert,
   HelpCircle,
   Sparkles,
   Briefcase,
@@ -29,8 +29,9 @@ import {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, loading, logout, isMockMode } = useAuth();
+  const { user, loading, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [presentationOpen, setPresentationOpen] = useState(false);
 
   // Protected route enforcement
   useEffect(() => {
@@ -69,7 +70,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {
       name: 'DNA Decoder',
       href: '/dashboard/assessment',
+      icon: Dna,
+      disabled: false,
+    },
+    {
+      name: 'Career Explorer',
+      href: '/dashboard/career-explorer',
       icon: Compass,
+      disabled: false,
+    },
+    {
+      name: 'Complete Career Report',
+      href: '/dashboard/report',
+      icon: FileText,
       disabled: false,
     },
     {
@@ -345,14 +358,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </h2>
           </div>
 
-          <div className="flex items-center gap-4">
-            {isMockMode && (
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/5 border border-amber-500/20 text-amber-400 text-xs font-bold">
-                <ShieldAlert className="h-4 w-4" />
-                <span>Running in Sandbox Mode</span>
-              </div>
-            )}
-            <div className="h-8 w-8 rounded-lg bg-slate-900/60 border border-slate-800/80 flex items-center justify-center text-slate-400 cursor-help" title="Need help?">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setPresentationOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/25 hover:border-indigo-500/50 text-indigo-300 hover:text-white text-xs font-bold transition-smooth cursor-pointer shadow-lg shadow-indigo-500/5 shrink-0"
+            >
+              <Sparkles className="h-3.5 w-3.5 animate-pulse text-indigo-400" />
+              <span>Judge Presentation</span>
+            </button>
+
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/5 border border-indigo-500/20 text-indigo-400 text-xs font-bold">
+              <Dna className="h-4 w-4" />
+              <span>CareerDNA Platform</span>
+            </div>
+            <div className="h-8 w-8 rounded-lg bg-slate-900/60 border border-slate-800/80 flex items-center justify-center text-slate-400 cursor-help shrink-0" title="Need help?">
               <HelpCircle className="h-4 w-4" />
             </div>
           </div>
@@ -360,15 +379,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Content Wrapper */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 relative z-10">
-          {isMockMode && (
-            <div className="sm:hidden p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-amber-400 text-xs font-bold flex gap-2">
-              <ShieldAlert className="h-4 w-4 shrink-0" />
-              <span>Running in Sandbox Mode</span>
-            </div>
-          )}
+          {/* Professional space optimization */}
           {children}
         </main>
       </div>
+
+      {/* Presentation Deck Modal */}
+      <PresentationMode 
+        isOpen={presentationOpen} 
+        onClose={() => setPresentationOpen(false)} 
+      />
     </div>
   );
 }

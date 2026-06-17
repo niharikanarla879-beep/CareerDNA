@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useResume } from '@/lib/resume-context';
+import { useToast } from '@/lib/toast-context';
 import { 
   ArrowLeft, 
   GitFork, 
@@ -99,6 +100,7 @@ export default function ResumeTailor() {
   }>({ skills: 0, experience: 0, projects: 0, certifications: 0, education: 0 });
 
   const { latestResume, resumeHistory, targetCareerId, projects, certs } = useResume();
+  const { showToast } = useToast();
 
   // Load history to populate options
   useEffect(() => {
@@ -228,7 +230,7 @@ export default function ResumeTailor() {
 
   const runTailoring = () => {
     if (!resumeText.trim() || !jobDescription.trim()) {
-      alert('Please provide both your resume text and target job description.');
+      showToast('Please provide both your resume text and target job description.', 'error');
       return;
     }
 

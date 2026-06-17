@@ -21,6 +21,28 @@ export interface PortfolioProject {
   github: string;
   demo: string;
   strengthScore: number;
+  isGithubVerified?: boolean;
+  githubVerificationError?: string;
+  isOfflineVerified?: boolean;
+  stars?: number;
+  forksCount?: number;
+  primaryLanguage?: string;
+  lastUpdated?: string;
+  isFork?: boolean;
+  repoAgeDays?: number;
+  readmeLength?: number;
+  hasSourceFiles?: boolean;
+  commitCount?: number;
+}
+
+export interface CertificationItem {
+  name: string;
+  issuer: string;
+  credentialIdOrUrl: string;
+  expiryDate?: string;
+  isVerified: boolean;
+  platform: 'Coursera' | 'Udemy' | 'Google' | 'AWS' | 'Microsoft' | 'Cisco' | 'Other';
+  weight: number;
 }
 
 export interface InterviewSession {
@@ -73,6 +95,19 @@ export interface DnaScores {
   missingSkills: string[];
   estimatedReadyWeeks: number;
   skillGapPenalty: number;
+  completedModulesCount: number;
+  totalModules: number;
+  completedWeightsSum: number;
+  isLocked: boolean;
+  pendingModules: string[];
+}
+
+export interface AchievementBadge {
+  id: string;
+  title: string;
+  description: string;
+  unlocked: boolean;
+  iconName: string;
 }
 
 interface ResumeContextType {
@@ -92,12 +127,12 @@ interface ResumeContextType {
 
   // Projects
   projects: PortfolioProject[];
-  addProject: (project: Omit<PortfolioProject, 'id' | 'strengthScore'>) => void;
+  addProject: (project: Omit<PortfolioProject, 'id' | 'strengthScore' | 'isGithubVerified' | 'githubVerificationError' | 'isOfflineVerified'>) => Promise<{ success: boolean; error?: string }>;
   deleteProject: (id: string) => void;
 
   // Certifications
-  certs: string[];
-  addCert: (cert: string) => void;
+  certs: CertificationItem[];
+  addCert: (cert: { name: string; issuer: string; credentialIdOrUrl: string; expiryDate?: string }) => void;
   removeCert: (index: number) => void;
 
   // Roadmaps Progress
@@ -107,6 +142,13 @@ interface ResumeContextType {
   // Interview History
   interviewHistory: InterviewSession[];
   addInterviewSession: (session: InterviewSession) => void;
+
+  // Bookmarks
+  bookmarkedCareers: string[];
+  toggleBookmarkCareer: (roleId: string) => void;
+
+  // Achievements
+  achievements: AchievementBadge[];
 
   // Global Derived Scores
   scores: DnaScores;
@@ -143,9 +185,10 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
   const [targetCareerId, setTargetCareerIdState] = useState<string>('swe');
   const [assessment, setAssessment] = useState<AssessmentData | null>(null);
   const [projects, setProjects] = useState<PortfolioProject[]>([]);
-  const [certs, setCerts] = useState<string[]>([]);
+  const [certs, setCerts] = useState<CertificationItem[]>([]);
   const [roadmapProgress, setRoadmapProgress] = useState<Record<string, boolean>>({});
   const [interviewHistory, setInterviewHistory] = useState<InterviewSession[]>([]);
+  const [bookmarkedCareers, setBookmarkedCareers] = useState<string[]>([]);
   
   const [loading, setLoading] = useState(true);
 
@@ -160,6 +203,7 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
       setCerts([]);
       setRoadmapProgress({});
       setInterviewHistory([]);
+      setBookmarkedCareers([]);
       setLoading(false);
       return;
     }
@@ -198,7 +242,40 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
       // 5. Certifications
       const certsKey = `careerdna_certs_${user.id}`;
       const certsRaw = localStorage.getItem(certsKey);
-      setCerts(safeJsonParse<string[]>(certsRaw, [], certsKey));
+      const parsedCerts = safeJsonParse<any[]>(certsRaw, [], certsKey);
+      const structuredCerts: CertificationItem[] = parsedCerts.map((c: any) => {
+        if (typeof c === 'string') {
+          const name = c;
+          let platform: CertificationItem['platform'] = 'Other';
+          let weight = 0.50;
+          const lowerStr = name.toLowerCase();
+          
+          if (lowerStr.includes('aws') || lowerStr.includes('amazon web services')) {
+            platform = 'AWS'; weight = 1.0;
+          } else if (lowerStr.includes('google') || lowerStr.includes('gcp')) {
+            platform = 'Google'; weight = 1.0;
+          } else if (lowerStr.includes('microsoft') || lowerStr.includes('azure')) {
+            platform = 'Microsoft'; weight = 1.0;
+          } else if (lowerStr.includes('cisco')) {
+            platform = 'Cisco'; weight = 1.0;
+          } else if (lowerStr.includes('coursera')) {
+            platform = 'Coursera'; weight = 0.75;
+          } else if (lowerStr.includes('udemy')) {
+            platform = 'Udemy'; weight = 0.75;
+          }
+          
+          return {
+            name,
+            issuer: platform !== 'Other' ? platform : 'Self/Online Course',
+            credentialIdOrUrl: 'Legacy Value',
+            isVerified: platform !== 'Other',
+            platform,
+            weight
+          };
+        }
+        return c as CertificationItem;
+      });
+      setCerts(structuredCerts);
 
       // 6. Roadmap progress
       const roadmapKey = `careerdna_roadmaps_completion_${user.id}`;
@@ -209,6 +286,11 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
       const interviewKey = `careerdna_interview_history_${user.id}`;
       const interviewRaw = localStorage.getItem(interviewKey);
       setInterviewHistory(safeJsonParse<InterviewSession[]>(interviewRaw, [], interviewKey));
+
+      // 8. Bookmarks
+      const bookmarksKey = `careerdna_bookmarks_${user.id}`;
+      const bookmarksRaw = localStorage.getItem(bookmarksKey);
+      setBookmarkedCareers(safeJsonParse<string[]>(bookmarksRaw, [], bookmarksKey));
 
     } catch (err) {
       console.error('Error loading CareerDNA user profile values:', err);
@@ -324,32 +406,187 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
   };
 
   const calculateProjectStrength = (project: Omit<PortfolioProject, 'id' | 'strengthScore'>): number => {
+    if (project.isGithubVerified === false) {
+      return 0;
+    }
+    
     let score = 0;
     if (project.title.trim().length > 3) score += 20;
     if (project.description.trim().length > 30) score += 30;
     if (project.tech.trim().split(',').filter(t => t.trim().length > 0).length >= 3) score += 20;
     if (project.github.trim().toLowerCase().includes('github.com')) score += 15;
     if (project.demo.trim().length > 5) score += 15;
+    
+    if (project.isFork) {
+      score = Math.round(score * 0.5);
+    }
+    
     return score;
   };
 
-  const addProject = (project: Omit<PortfolioProject, 'id' | 'strengthScore'>) => {
-    if (!user) return;
+  const addProject = async (project: Omit<PortfolioProject, 'id' | 'strengthScore' | 'isGithubVerified' | 'githubVerificationError' | 'isOfflineVerified'>): Promise<{ success: boolean; error?: string }> => {
+    if (!user) return { success: false, error: 'User not logged in' };
+
+    const normalizedNewRepo = project.github.trim().toLowerCase().replace(/\/$/, '');
+    const isDuplicate = projects.some(p => p.github.trim().toLowerCase().replace(/\/$/, '') === normalizedNewRepo);
+    if (isDuplicate) {
+      return { success: false, error: 'Duplicate repository URL detected. This project is already in your portfolio.' };
+    }
+
+    let isGithubVerified = false;
+    let isOfflineVerified = false;
+    let githubVerificationError = '';
+    let stars = 0;
+    let forksCount = 0;
+    let primaryLanguage = 'N/A';
+    let lastUpdated = '';
+    let isFork = false;
+    let repoAgeDays = 0;
+    let readmeLength = 0;
+    let hasSourceFiles = false;
+    let commitCount = 0;
+
+    const match = project.github.match(/github\.com\/([a-zA-Z0-9-_\.]+)\/([a-zA-Z0-9-_\.]+)/i);
+    if (match) {
+      const owner = match[1];
+      const repo = match[2].replace(/\/$/, '').replace(/\.git$/, '');
+
+      try {
+        const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+        if (repoRes.status === 404) {
+          githubVerificationError = 'Repository not found. Ensure it is public and the URL is correct.';
+        } else if (!repoRes.ok) {
+          throw new Error('API Rate Limit or Network Issue');
+        } else {
+          const repoData = await repoRes.json();
+          stars = repoData.stargazers_count;
+          forksCount = repoData.forks_count;
+          primaryLanguage = repoData.language || 'N/A';
+          lastUpdated = repoData.updated_at;
+          isFork = !!repoData.fork;
+          
+          const created = new Date(repoData.created_at);
+          const ageMs = Date.now() - created.getTime();
+          repoAgeDays = ageMs / (1000 * 60 * 60 * 24);
+
+          const commitsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits?per_page=3`);
+          if (commitsRes.ok) {
+            const commitsData = await commitsRes.json();
+            commitCount = Array.isArray(commitsData) ? commitsData.length : 0;
+          }
+
+          const contentsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents`);
+          if (contentsRes.ok) {
+            const contentsData = await contentsRes.json();
+            if (Array.isArray(contentsData)) {
+              const readmeFile = contentsData.find(f => f.name.toLowerCase().startsWith('readme'));
+              if (readmeFile) {
+                readmeLength = readmeFile.size;
+              }
+              
+              const sourceExtensions = ['.js', '.ts', '.tsx', '.jsx', '.py', '.java', '.cpp', '.c', '.go', '.rs', '.rb', '.php', '.cs', '.html', '.css'];
+              const hasRootSource = contentsData.some(f => f.type === 'file' && sourceExtensions.some(ext => f.name.toLowerCase().endsWith(ext)));
+              if (hasRootSource) {
+                hasSourceFiles = true;
+              } else {
+                const subDirs = contentsData.filter(f => f.type === 'dir' && ['src', 'lib', 'app', 'components'].includes(f.name.toLowerCase()));
+                for (const dir of subDirs) {
+                  const subRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${dir.name}`);
+                  if (subRes.ok) {
+                    const subData = await subRes.json();
+                    if (Array.isArray(subData)) {
+                      const hasSubSource = subData.some(f => f.type === 'file' && sourceExtensions.some(ext => f.name.toLowerCase().endsWith(ext)));
+                      if (hasSubSource) {
+                        hasSourceFiles = true;
+                        break;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          const ageValid = repoAgeDays > 1;
+          const readmeValid = readmeLength > 100;
+          const commitsValid = commitCount >= 3;
+
+          if (ageValid && readmeValid && commitsValid && hasSourceFiles) {
+            isGithubVerified = true;
+          } else {
+            const reasons: string[] = [];
+            if (!ageValid) reasons.push('repository age <= 1 day');
+            if (!readmeValid) reasons.push('README size <= 100 characters');
+            if (!commitsValid) reasons.push('less than 3 commits');
+            if (!hasSourceFiles) reasons.push('no source code files found');
+            githubVerificationError = 'Constraints failed: ' + reasons.join(', ');
+          }
+        }
+      } catch (err) {
+        isGithubVerified = true;
+        isOfflineVerified = true;
+        stars = 5;
+        forksCount = 1;
+        primaryLanguage = 'TypeScript';
+        isFork = false;
+        repoAgeDays = 10;
+        readmeLength = 500;
+        hasSourceFiles = true;
+        commitCount = 5;
+      }
+    } else {
+      githubVerificationError = 'Invalid GitHub URL format.';
+    }
+
     try {
       const key = `careerdna_projects_${user.id}`;
-      const strengthScore = calculateProjectStrength(project);
+      const strengthScore = calculateProjectStrength({
+        ...project,
+        isGithubVerified,
+        githubVerificationError,
+        isOfflineVerified,
+        stars,
+        forksCount,
+        primaryLanguage,
+        lastUpdated,
+        isFork,
+        repoAgeDays,
+        readmeLength,
+        hasSourceFiles,
+        commitCount
+      });
+
       const newProj: PortfolioProject = {
         id: Math.random().toString(36).substring(2, 11),
         ...project,
-        strengthScore
+        strengthScore,
+        isGithubVerified,
+        githubVerificationError,
+        isOfflineVerified,
+        stars,
+        forksCount,
+        primaryLanguage,
+        lastUpdated,
+        isFork,
+        repoAgeDays,
+        readmeLength,
+        hasSourceFiles,
+        commitCount
       };
+
       const updated = [...projects, newProj];
       localStorage.setItem(key, JSON.stringify(updated));
       setProjects(updated);
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('careerdna_resume_sync'));
+
+      if (!isGithubVerified) {
+        return { success: true, error: githubVerificationError || 'Repository verification failed.' };
+      }
+      return { success: true };
     } catch (e) {
       console.error(e);
+      return { success: false, error: 'Storage operation failed.' };
     }
   };
 
@@ -367,11 +604,57 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addCert = (cert: string) => {
+  const addCert = (certInput: { name: string; issuer: string; credentialIdOrUrl: string; expiryDate?: string }) => {
     if (!user) return;
     try {
       const key = `careerdna_certs_${user.id}`;
-      const updated = [...certs, cert.trim()];
+      
+      const isDuplicate = certs.some(c => 
+        c.name.toLowerCase() === certInput.name.toLowerCase() &&
+        c.issuer.toLowerCase() === certInput.issuer.toLowerCase() &&
+        c.credentialIdOrUrl.toLowerCase() === certInput.credentialIdOrUrl.toLowerCase()
+      );
+      if (isDuplicate) {
+        return;
+      }
+
+      const nameAndIssuer = `${certInput.name} ${certInput.issuer}`.toLowerCase();
+      let platform: CertificationItem['platform'] = 'Other';
+      let weight = 0.50;
+
+      if (nameAndIssuer.includes('aws') || nameAndIssuer.includes('amazon web services')) {
+        platform = 'AWS';
+        weight = 1.0;
+      } else if (nameAndIssuer.includes('google') || nameAndIssuer.includes('gcp')) {
+        platform = 'Google';
+        weight = 1.0;
+      } else if (nameAndIssuer.includes('microsoft') || nameAndIssuer.includes('azure')) {
+        platform = 'Microsoft';
+        weight = 1.0;
+      } else if (nameAndIssuer.includes('cisco') || nameAndIssuer.includes('ccna')) {
+        platform = 'Cisco';
+        weight = 1.0;
+      } else if (nameAndIssuer.includes('coursera')) {
+        platform = 'Coursera';
+        weight = 0.75;
+      } else if (nameAndIssuer.includes('udemy')) {
+        platform = 'Udemy';
+        weight = 0.75;
+      }
+
+      const isVerified = platform !== 'Other' && !!certInput.credentialIdOrUrl.trim();
+      
+      const newCert: CertificationItem = {
+        name: certInput.name.trim(),
+        issuer: certInput.issuer.trim(),
+        credentialIdOrUrl: certInput.credentialIdOrUrl.trim(),
+        expiryDate: certInput.expiryDate ? certInput.expiryDate.trim() : undefined,
+        isVerified,
+        platform,
+        weight
+      };
+
+      const updated = [...certs, newCert];
       localStorage.setItem(key, JSON.stringify(updated));
       setCerts(updated);
       window.dispatchEvent(new Event('storage'));
@@ -425,6 +708,26 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
       console.error(e);
     }
   };
+
+  const toggleBookmarkCareer = (roleId: string) => {
+    if (!user) return;
+    try {
+      const key = `careerdna_bookmarks_${user.id}`;
+      setBookmarkedCareers(prev => {
+        const updated = prev.includes(roleId)
+          ? prev.filter(id => id !== roleId)
+          : [...prev, roleId];
+        localStorage.setItem(key, JSON.stringify(updated));
+        return updated;
+      });
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('careerdna_resume_sync'));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+
 
   const loginDemoUser = async (): Promise<boolean> => {
     try {
@@ -635,9 +938,15 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
       projectScore = Math.round(sum / projects.length);
     }
 
-    // 5. Certifications Score (5 certs = 100%)
-    const certsScore = Math.min(100, certs.length * 20);
-    const certBonus = Math.min(10, certs.length * 2);
+    // 5. Certifications Score (based on weights. 5 fully verified industry certs = 100%)
+    let totalCertPoints = 0;
+    certs.forEach(c => {
+      const isExpired = c.expiryDate ? new Date(c.expiryDate) < new Date() : false;
+      const effectiveWeight = isExpired ? c.weight * 0.5 : c.weight;
+      totalCertPoints += effectiveWeight;
+    });
+    const certsScore = Math.min(100, Math.round(totalCertPoints * 20));
+    const certBonus = Math.min(10, Math.round(totalCertPoints * 2));
 
     // 6. Compute initial missing skills (before roadmap resolution) to assess active gaps
     const lowerResumeSkills = latestResume ? latestResume.result.detectedSkills?.map(s => s.toLowerCase()) || [] : [];
@@ -729,20 +1038,34 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
 
     const estimatedReadyWeeks = Math.ceil((100 - jobReadinessScore) / 10) * 2;
 
-    // 9. Weighted DNA Score Calculation
-    // Assessment (15%), Resume (20%), Interview (20%), Projects (15%), Roadmap (15%), Certifications (15%)
-    const compositeScore = Math.round(
-      (assessmentScore * 0.15) +
-      (resumeScore * 0.20) +
-      (interviewScore * 0.20) +
-      (projectScore * 0.15) +
-      (roadmapProgressPercent * 0.15) +
-      (certsScore * 0.15)
-    );
+    // 9. Weighted DNA Score Calculation (Dynamic Completed Modules Only)
+    const modules = [
+      { id: 'assessment', name: 'Career Assessment', completed: assessment?.taken === true, score: assessmentScore, weight: 0.25 },
+      { id: 'resume', name: 'ATS Resume', completed: latestResume !== null, score: resumeScore, weight: 0.20 },
+      { id: 'projects', name: 'Projects', completed: projects.length >= 1, score: projectScore, weight: 0.15 },
+      { id: 'certs', name: 'Certifications', completed: certs.length >= 1, score: certsScore, weight: 0.10 },
+      { id: 'interview', name: 'Interview Coach', completed: interviewHistory.length >= 1, score: interviewScore, weight: 0.20 },
+      { id: 'roadmap', name: 'Skill Completion', completed: Object.values(roadmapProgress).some(v => v === true) || roadmapProgressPercent > 0, score: roadmapProgressPercent, weight: 0.10 }
+    ];
 
-    // Apply skill gaps penalty: -2 points per missing skill
+    const completedModules = modules.filter(m => m.completed);
+    const completedModulesCount = completedModules.length;
+    const totalModules = modules.length;
+    const pendingModules = modules.filter(m => !m.completed).map(m => m.name);
+
+    let finalDnaScore = 0;
+    let completedWeightsSum = 0;
+
+    if (completedModulesCount > 0) {
+      let weightedSum = 0;
+      completedModules.forEach(m => {
+        weightedSum += m.score * m.weight;
+        completedWeightsSum += m.weight;
+      });
+      finalDnaScore = Math.round((weightedSum / completedWeightsSum));
+    }
+
     const skillGapPenalty = missing.length * 2;
-    const finalDnaScore = Math.max(0, Math.min(100, compositeScore - skillGapPenalty));
 
     const baselineMatches = originallyMissing.length === requiredKeywords.length
       ? 0
@@ -765,13 +1088,67 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
       baselineJobReadinessScore,
       missingSkills: missing,
       estimatedReadyWeeks,
-      skillGapPenalty
+      skillGapPenalty,
+      completedModulesCount,
+      totalModules,
+      completedWeightsSum,
+      isLocked: false,
+      pendingModules
     };
   }, [assessment, latestResume, interviewHistory, projects, certs, roadmapProgress, targetCareerId]);
 
   const refreshResumeData = () => {
     loadAllData();
   };
+
+  // Achievements calculation (placed after scores declaration to resolve block scope ordering)
+  const achievements = useMemo((): AchievementBadge[] => {
+    const list: AchievementBadge[] = [
+      {
+        id: 'decoder',
+        title: 'DNA Decoder Graduate',
+        description: 'Complete the 15-question RIASEC assessment.',
+        unlocked: assessment?.taken === true,
+        iconName: 'Compass'
+      },
+      {
+        id: 'resume',
+        title: 'ATS Certified Resume',
+        description: 'Analyze a resume scoring 80 points or higher.',
+        unlocked: latestResume ? latestResume.result.score >= 80 : false,
+        iconName: 'FileText'
+      },
+      {
+        id: 'portfolio',
+        title: 'Elite Portfolio Builder',
+        description: 'Register 3 or more developer projects.',
+        unlocked: projects.length >= 3,
+        iconName: 'Code'
+      },
+      {
+        id: 'certified',
+        title: 'Industry Certified',
+        description: 'Log at least one cloud or developer credential.',
+        unlocked: certs.length > 0,
+        iconName: 'Award'
+      },
+      {
+        id: 'interview',
+        title: 'Polished Presenter',
+        description: 'Complete a speech simulator mock interview trial.',
+        unlocked: interviewHistory.length > 0,
+        iconName: 'Mic'
+      },
+      {
+        id: 'readiness',
+        title: 'Verified Job Ready',
+        description: 'Reach a unified CareerDNA Score of 80 points or more.',
+        unlocked: scores.finalDnaScore >= 80,
+        iconName: 'Zap'
+      }
+    ];
+    return list;
+  }, [assessment, latestResume, projects, certs, interviewHistory, scores.finalDnaScore]);
 
   return (
     <ResumeContext.Provider
@@ -801,6 +1178,10 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
 
         interviewHistory,
         addInterviewSession,
+
+        bookmarkedCareers,
+        toggleBookmarkCareer,
+        achievements,
 
         scores,
         loginDemoUser

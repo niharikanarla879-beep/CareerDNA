@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useResume, InterviewSession } from '@/lib/resume-context';
+import { useToast } from '@/lib/toast-context';
 import { targetCareers } from '@/lib/constants';
 import {
   ArrowLeft,
@@ -16,6 +17,7 @@ import {
   Info
 } from 'lucide-react';
 import { interviewQuestionsDb, QuestionDef } from '@/lib/interview-questions';
+import { validateAnswer } from '@/lib/interview-validator';
 
 interface TranscriptItem {
   question: string;
@@ -78,6 +80,7 @@ const getSpeechErrorMessage = (errorCode: string): string => {
 
 export default function InterviewCoach() {
   const { targetCareerId, setTargetCareerId, interviewHistory, addInterviewSession } = useResume();
+  const { showToast } = useToast();
   
   // Setup states
   const [difficulty, setDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate');
@@ -106,6 +109,7 @@ export default function InterviewCoach() {
   
   // Audio Speech APIs
   const [micError, setMicError] = useState<string | null>(null);
+  const [answerValidationError, setAnswerValidationError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   
   const isSpeechSupported = useMemo(() => {
@@ -158,6 +162,7 @@ export default function InterviewCoach() {
   const startListening = () => {
     stopSpeaking();
     setMicError(null);
+    setAnswerValidationError(null);
     
     if (typeof window === 'undefined') return;
 
@@ -165,7 +170,8 @@ export default function InterviewCoach() {
       (window as Window & typeof globalThis & { SpeechRecognition?: new () => SpeechRecognitionInstance; webkitSpeechRecognition?: new () => SpeechRecognitionInstance }).SpeechRecognition ||
       (window as Window & typeof globalThis & { SpeechRecognition?: new () => SpeechRecognitionInstance; webkitSpeechRecognition?: new () => SpeechRecognitionInstance }).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setMicError('Speech recognition is not supported in this browser. Please use a modern version of Google Chrome or Microsoft Edge.');
+      setMicError("Voice recognition is currently unavailable. You can continue by typing your answer manually.");
+      setIsListening(false);
       return;
     }
 
@@ -207,8 +213,7 @@ export default function InterviewCoach() {
 
           rec.onerror = (event: SpeechRecognitionErrorEvent) => {
             console.warn('Speech recognition warning status:', event.error);
-            const msg = getSpeechErrorMessage(event.error);
-            setMicError(msg);
+            setMicError("Voice recognition is currently unavailable. You can continue by typing your answer manually.");
             setIsListening(false);
           };
 
@@ -220,13 +225,13 @@ export default function InterviewCoach() {
           rec.start();
         } catch (e) {
           console.warn('Failed to initialize speech recognition:', e);
-          setMicError('Could not start speech recognition. Please check your microphone connection.');
+          setMicError("Voice recognition is currently unavailable. You can continue by typing your answer manually.");
           setIsListening(false);
         }
       })
       .catch((err) => {
         console.warn('Microphone permission check failed:', err);
-        setMicError('Microphone permission denied. Please enable microphone permissions in your browser settings, or type your response manually.');
+        setMicError("Voice recognition is currently unavailable. You can continue by typing your answer manually.");
         setIsListening(false);
       });
   };
@@ -261,6 +266,7 @@ export default function InterviewCoach() {
     setCurrentQIndex(0);
     setTranscripts([]);
     setLiveTranscript('');
+    setAnswerValidationError(null);
     setSessionPhase('active');
     
     // Speak first question
@@ -271,10 +277,17 @@ export default function InterviewCoach() {
 
   const handleNextOrFinish = (typedAnswer: string) => {
     const answer = typedAnswer || liveTranscript;
-    if (!answer.trim()) {
-      alert('Please speak or type your response before submitting.');
+    
+    // Enforce quality, anti-cheat, and confidence validation
+    const valResult = validateAnswer(answer);
+    if (!valResult.isValid) {
+      const errMsg = valResult.error || "Response is too short or does not contain enough meaningful content for evaluation.";
+      setAnswerValidationError(errMsg);
+      showToast(errMsg, 'error');
       return;
     }
+
+    setAnswerValidationError(null);
 
     stopListening();
     stopSpeaking();
@@ -680,11 +693,19 @@ export default function InterviewCoach() {
                 <textarea
                   id={`answer_input_${activeQuestions[currentQIndex].id}`}
                   value={liveTranscript}
-                  onChange={(e) => setLiveTranscript(e.target.value)}
+                  onChange={(e) => {
+                    setLiveTranscript(e.target.value);
+                    if (answerValidationError) setAnswerValidationError(null);
+                  }}
                   placeholder="Click 'Mute / Record' or type your response here. Try to describe methodologies, frameworks, and metrics..."
                   rows={4}
                   className="w-full bg-slate-950 border border-slate-900 focus:border-indigo-500 rounded-2xl px-4 py-3 text-xs font-semibold text-white outline-none resize-none leading-relaxed"
                 />
+                {answerValidationError && (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold rounded-xl animate-fade-in mt-1.5 text-left">
+                    {answerValidationError}
+                  </div>
+                )}
               </div>
 
               {/* Microphone actions */}

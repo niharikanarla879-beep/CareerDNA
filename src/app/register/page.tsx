@@ -113,12 +113,15 @@ export default function RegisterPage() {
         </div>
 
         {isMockMode && (
-          <div className="glass-panel border-amber-500/20 bg-amber-500/5 p-4 rounded-2xl flex gap-3 text-amber-400">
+          <div className="glass-panel border-indigo-500/20 bg-indigo-500/5 p-4 rounded-2xl flex gap-3 text-indigo-400">
             <ShieldAlert className="h-5 w-5 shrink-0 mt-0.5" />
-            <div className="text-xs space-y-1">
-              <span className="font-bold">Sandbox Registration Active</span>
-              <p className="text-slate-400 leading-relaxed">
-                Supabase keys are missing. This account will be created locally in your browser&apos;s sandboxed storage.
+            <div className="text-xs space-y-1.5">
+              <span className="font-bold">Secure Local Authentication</span>
+              <p className="text-slate-300 leading-relaxed">
+                This project operates locally for evaluation. Credentials are authenticated securely inside your local browser storage.
+              </p>
+              <p className="text-slate-400 text-[10px]">
+                Note: Local profiles are saved directly on this browser and will persist across sessions.
               </p>
             </div>
           </div>

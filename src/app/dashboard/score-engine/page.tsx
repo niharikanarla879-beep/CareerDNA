@@ -20,7 +20,7 @@ import {
 
 export default function ScoreEnginePage() {
   const { user } = useAuth();
-  const { scores, latestResume, certs, projects, assessment, interviewHistory } = useResume();
+  const { scores, latestResume, certs, projects, assessment, interviewHistory, roadmapProgress } = useResume();
 
   if (!user) return null;
 
@@ -140,7 +140,7 @@ export default function ScoreEnginePage() {
               </div>
               <h2 className="text-2xl font-extrabold text-white">Consolidated DNA Score</h2>
               <p className="text-xs text-slate-400 leading-relaxed max-w-md">
-                This composite score evaluates your candidate competitiveness. Scoring **80+** signifies advanced job readiness matching top industry standards.
+                This composite score evaluates your candidate competitiveness. Currently **{scores.completedModulesCount} of {scores.totalModules} modules** are completed. Pending modules are excluded from the weighting.
               </p>
               <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden">
                 <div 
@@ -209,11 +209,11 @@ export default function ScoreEnginePage() {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white">Diagnostic Assessment</h4>
-                    <span className="text-[10px] text-slate-500">Weight: 15%</span>
+                    <span className="text-[10px] text-slate-500">Weight: 25%</span>
                   </div>
                 </div>
-                <span className={`text-sm font-bold font-mono ${getScoreColor(scores.assessmentScore)}`}>
-                  {scores.assessmentScore}%
+                <span className={`text-sm font-bold font-mono ${assessment?.taken ? getScoreColor(scores.assessmentScore) : 'text-slate-500'}`}>
+                  {assessment?.taken ? `${scores.assessmentScore}%` : 'Pending'}
                 </span>
               </div>
 
@@ -228,8 +228,8 @@ export default function ScoreEnginePage() {
                     <span className="text-[10px] text-slate-500">Weight: 20%</span>
                   </div>
                 </div>
-                <span className={`text-sm font-bold font-mono ${getScoreColor(scores.resumeScore)}`}>
-                  {scores.resumeScore}%
+                <span className={`text-sm font-bold font-mono ${latestResume ? getScoreColor(scores.resumeScore) : 'text-slate-500'}`}>
+                  {latestResume ? `${scores.resumeScore}%` : 'Pending'}
                 </span>
               </div>
 
@@ -244,8 +244,8 @@ export default function ScoreEnginePage() {
                     <span className="text-[10px] text-slate-500">Weight: 20%</span>
                   </div>
                 </div>
-                <span className={`text-sm font-bold font-mono ${getScoreColor(scores.interviewScore)}`}>
-                  {scores.interviewScore}%
+                <span className={`text-sm font-bold font-mono ${interviewHistory.length > 0 ? getScoreColor(scores.interviewScore) : 'text-slate-500'}`}>
+                  {interviewHistory.length > 0 ? `${scores.interviewScore}%` : 'Pending'}
                 </span>
               </div>
 
@@ -260,8 +260,8 @@ export default function ScoreEnginePage() {
                     <span className="text-[10px] text-slate-500">Weight: 15%</span>
                   </div>
                 </div>
-                <span className={`text-sm font-bold font-mono ${getScoreColor(scores.projectScore)}`}>
-                  {scores.projectScore}%
+                <span className={`text-sm font-bold font-mono ${projects.length > 0 ? getScoreColor(scores.projectScore) : 'text-slate-500'}`}>
+                  {projects.length > 0 ? `${scores.projectScore}%` : 'Pending'}
                 </span>
               </div>
 
@@ -273,11 +273,11 @@ export default function ScoreEnginePage() {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white">Roadmap Milestones</h4>
-                    <span className="text-[10px] text-slate-500">Weight: 15%</span>
+                    <span className="text-[10px] text-slate-500">Weight: 10%</span>
                   </div>
                 </div>
-                <span className={`text-sm font-bold font-mono ${getScoreColor(scores.roadmapProgressPercent)}`}>
-                  {scores.roadmapProgressPercent}%
+                <span className={`text-sm font-bold font-mono ${(Object.values(roadmapProgress).some(v => v === true) || scores.roadmapProgressPercent > 0) ? getScoreColor(scores.roadmapProgressPercent) : 'text-slate-500'}`}>
+                  {(Object.values(roadmapProgress).some(v => v === true) || scores.roadmapProgressPercent > 0) ? `${scores.roadmapProgressPercent}%` : 'Pending'}
                 </span>
               </div>
 
@@ -289,11 +289,11 @@ export default function ScoreEnginePage() {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white">Certifications Ledger</h4>
-                    <span className="text-[10px] text-slate-500">Weight: 15%</span>
+                    <span className="text-[10px] text-slate-500">Weight: 10%</span>
                   </div>
                 </div>
-                <span className={`text-sm font-bold font-mono ${getScoreColor(scores.certsScore)}`}>
-                  {scores.certsScore}%
+                <span className={`text-sm font-bold font-mono ${certs.length > 0 ? getScoreColor(scores.certsScore) : 'text-slate-500'}`}>
+                  {certs.length > 0 ? `${scores.certsScore}%` : 'Pending'}
                 </span>
               </div>
 

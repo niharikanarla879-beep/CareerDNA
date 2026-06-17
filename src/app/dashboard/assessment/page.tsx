@@ -127,6 +127,12 @@ export default function AssessmentPage() {
   const { assessment, saveAssessment } = useResume();
 
   const [step, setStep] = useState<number>(0);
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
   
   // Quiz values
   const [riasecAnswers, setRiasecAnswers] = useState<Record<string, number>>({
@@ -555,20 +561,26 @@ export default function AssessmentPage() {
                 </div>
 
                 <div className="relative w-full h-[220px] pt-1">
-                  <ResponsiveContainer width="99%" height="100%">
-                    <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarChartData}>
-                      <PolarGrid stroke="#1e293b" />
-                      <PolarAngleAxis dataKey="subject" stroke="#94a3b8" fontSize={9} />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#475569" fontSize={8} />
-                      <Radar
-                        name="RIASEC Scores"
-                        dataKey="A"
-                        stroke="#6366f1"
-                        fill="#6366f1"
-                        fillOpacity={0.25}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
+                  {mounted ? (
+                    <ResponsiveContainer width="99%" height="100%">
+                      <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarChartData}>
+                        <PolarGrid stroke="#1e293b" />
+                        <PolarAngleAxis dataKey="subject" stroke="#94a3b8" fontSize={9} />
+                        <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#475569" fontSize={8} />
+                        <Radar
+                          name="RIASEC Scores"
+                          dataKey="A"
+                          stroke="#6366f1"
+                          fill="#6366f1"
+                          fillOpacity={0.25}
+                        />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-xs text-slate-500 font-semibold">
+                      Loading chart graphics...
+                    </div>
+                  )}
                 </div>
               </div>
 

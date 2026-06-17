@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useResume } from '@/lib/resume-context';
+import { useToast } from '@/lib/toast-context';
 import { 
   Dna, 
   FileText, 
@@ -17,6 +18,7 @@ import {
 
 export default function LandingPage() {
   const { loginDemoUser } = useResume();
+  const { showToast } = useToast();
   const router = useRouter();
 
   const handleLaunchDemo = async () => {
@@ -24,7 +26,7 @@ export default function LandingPage() {
     if (success) {
       router.push('/dashboard');
     } else {
-      alert('Failed to initialize demo profile.');
+      showToast('Failed to initialize demo profile.', 'error');
     }
   };
 
@@ -91,7 +93,7 @@ export default function LandingPage() {
                 onClick={handleLaunchDemo}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 px-8 py-4 font-bold shadow-lg shadow-amber-500/15 transition-smooth cursor-pointer"
               >
-                <Sparkles className="h-4 w-4 stroke-[3] text-slate-950" /> View Demo Profile (Judges)
+                <Sparkles className="h-4 w-4 stroke-[3] text-slate-950" /> Access Candidate Dashboard
               </button>
               <Link 
                 href="/register" 
@@ -133,7 +135,7 @@ export default function LandingPage() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold text-white">Demo Candidate</h3>
+                    <h3 className="font-semibold text-white">Niharika Narla</h3>
                     <p className="text-xs text-slate-400">Target Role: Software Engineer</p>
                   </div>
                   <div className="h-12 w-12 rounded-full border-2 border-indigo-500/30 flex items-center justify-center text-xs font-extrabold text-indigo-400 bg-indigo-950/20 shadow-inner">

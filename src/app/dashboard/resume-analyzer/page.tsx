@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
+import { useToast } from '@/lib/toast-context';
 import { 
   FileText, 
   Upload, 
@@ -21,13 +22,13 @@ import {
   Printer,
   Trash2
 } from 'lucide-react';
-import { analyzeResume } from '@/lib/analyzer';
+import { analyzeResume, validateResume } from '@/lib/analyzer';
 import { useAuth } from '@/lib/auth-context';
 import { useResume, ResumeHistoryItem } from '@/lib/resume-context';
 import { targetCareers } from '@/lib/constants';
 
 const loadingSteps = [
-  'Initializing secure document sandbox...',
+  'Initializing secure document processor...',
   'Extracting raw text from document structure...',
   'Performing semantic parsing on headers & sections...',
   'Cross-referencing work experience dates and impact metrics...',
@@ -38,6 +39,7 @@ const loadingSteps = [
 export default function ResumeAnalyzer() {
   const { user } = useAuth();
   const { resumeHistory, addResumeToHistory, deleteResumeFromHistory } = useResume();
+  const { showToast } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [targetCareer, setTargetCareer] = useState('swe');
@@ -64,6 +66,9 @@ export default function ResumeAnalyzer() {
   // Auto-save history item when analysis is complete
   useEffect(() => {
     if (phase === 'results' && extractedText && user) {
+      const valResult = validateResume(extractedText);
+      if (!valResult.isValid) return; // Do not save invalid resume to history
+
       const activeResult = analyzeResume(extractedText, targetCareer);
       const isDuplicate = resumeHistory.some((item: ResumeHistoryItem) => item.text === extractedText && item.roleId === targetCareer);
       
@@ -107,7 +112,7 @@ export default function ResumeAnalyzer() {
       if (validTypes.includes(droppedFile.type) || droppedFile.name.endsWith('.pdf') || droppedFile.name.endsWith('.docx') || droppedFile.name.endsWith('.doc')) {
         setFile(droppedFile);
       } else {
-        alert('Invalid file format. Please upload a PDF or DOCX resume.');
+        showToast('Invalid file format. Please upload a PDF or DOCX resume.', 'error');
       }
     }
   };
@@ -212,7 +217,7 @@ export default function ResumeAnalyzer() {
     } catch (err) {
       console.error('Local resume analysis failed:', err);
       const errorMsg = err instanceof Error ? err.message : 'An error occurred during local resume analysis. Please verify your file format.';
-      alert(errorMsg);
+      showToast(errorMsg, 'error');
       setPhase('upload');
     }
   };
@@ -252,9 +257,28 @@ export default function ResumeAnalyzer() {
     }, 600); // Quick dynamic loading indicator
   };
 
+  const validationResult = useMemo(() => {
+    return validateResume(extractedText);
+  }, [extractedText]);
+
   const currentResult = useMemo(() => {
+    if (!validationResult.isValid) {
+      return {
+        score: 0,
+        keywordMatch: 0,
+        formatting: 0,
+        experience: 0,
+        skillsCoverage: 0,
+        education: 0,
+        foundKeywords: [],
+        missingKeywords: [],
+        missingSkillsHigh: [],
+        missingSkillsMedium: [],
+        suggestions: []
+      };
+    }
     return analyzeResume(extractedText, targetCareer);
-  }, [extractedText, targetCareer]);
+  }, [extractedText, targetCareer, validationResult.isValid]);
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-emerald-400 stroke-emerald-500';
@@ -321,8 +345,7 @@ Actionable Suggestions:
 ----------------------
 ${(currentResult.suggestions || []).map((s, idx) => `${idx + 1}. [${s.category}] [Impact: ${s.impact}] ${s.text}`).join('\n')}
 
-==================================================
-Report compiled by CareerDNA AI Analyst Sandbox
+Report compiled by CareerDNA AI Analyst
 ==================================================`;
 
     const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
@@ -355,7 +378,7 @@ Report compiled by CareerDNA AI Analyst Sandbox
           </p>
         </div>
 
-        {phase === 'results' && (
+        {phase === 'results' && validationResult.isValid && (
           <div className="flex gap-2">
             <button 
               onClick={resetAll}
@@ -571,10 +594,10 @@ Report compiled by CareerDNA AI Analyst Sandbox
             <div className="glass-panel border-slate-900 rounded-3xl p-6 bg-slate-950/40 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 blur-2xl rounded-full" />
               <h4 className="font-bold text-white text-sm mb-2 flex items-center gap-1.5">
-                <Info className="h-4 w-4 text-indigo-400" /> Sandboxed Execution
+                <Info className="h-4 w-4 text-indigo-400" /> Local Processing
               </h4>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Resume processing operates completely locally and dynamically in this sandbox demonstration. Your file content is not uploaded to any remote servers.
+                Resume processing operates completely locally and dynamically. Your file content is not uploaded to any remote servers.
               </p>
             </div>
           </div>
@@ -624,8 +647,125 @@ Report compiled by CareerDNA AI Analyst Sandbox
             </div>
           )}
 
-          {/* Results Overview Bar */}
-          <div className="grid md:grid-cols-3 gap-6">
+          {/* Rejection Failure Screen */}
+          {!validationResult.isValid && (
+            <div className="glass-panel border-rose-950/20 bg-slate-950/30 rounded-3xl p-8 max-w-2xl mx-auto space-y-8 animate-fade-in text-center">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="h-16 w-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shadow-lg shadow-rose-500/5">
+                  <BadgeAlert className="h-8 w-8 animate-pulse" />
+                </div>
+                
+                <div className="space-y-2">
+                  <h2 className="text-xl font-extrabold text-white tracking-tight">
+                    Document Validation Failed
+                  </h2>
+                  <p className="text-sm text-slate-400 font-semibold max-w-md mx-auto leading-relaxed">
+                    {extractedText.trim().length < 50 ? (
+                      <>
+                        Unable to extract readable text from this document.
+                        <br />
+                        <span className="text-rose-400/90 font-bold block mt-1">This may be a scanned image PDF. Try OCR processing.</span>
+                      </>
+                    ) : (
+                      "This document does not appear to be a valid resume."
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Validation Audit Checklist */}
+              <div className="bg-slate-950/80 border border-slate-900 rounded-2xl p-6 text-left space-y-4 max-w-md mx-auto shadow-inner">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-900/60 pb-2 flex justify-between">
+                  <span>Resume Validation Audit</span>
+                  <span className="text-rose-400 font-mono font-extrabold">{validationResult.confidence}% Confidence</span>
+                </h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    {validationResult.checks.hasName ? (
+                      <span className="text-emerald-400">✓ Name Found</span>
+                    ) : (
+                      <span className="text-rose-400">✗ Name Missing</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    {validationResult.checks.hasEmail ? (
+                      <span className="text-emerald-400">✓ Email Found</span>
+                    ) : (
+                      <span className="text-rose-400">✗ Email Missing</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    {validationResult.checks.hasPhone ? (
+                      <span className="text-emerald-400">✓ Phone Found</span>
+                    ) : (
+                      <span className="text-rose-400">✗ Phone Missing</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    {validationResult.checks.hasSkills ? (
+                      <span className="text-emerald-400">✓ Skills Section Found</span>
+                    ) : (
+                      <span className="text-rose-400">✗ Skills Section Missing</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    {validationResult.checks.hasEducation ? (
+                      <span className="text-emerald-400">✓ Education Found</span>
+                    ) : (
+                      <span className="text-rose-400">✗ Education Missing</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    {validationResult.checks.hasExperience ? (
+                      <span className="text-emerald-400">✓ Experience Found</span>
+                    ) : (
+                      <span className="text-rose-400">✗ Experience Missing</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    {validationResult.checks.hasLinkedIn ? (
+                      <span className="text-emerald-400">✓ LinkedIn Found</span>
+                    ) : (
+                      <span className="text-rose-400">✗ LinkedIn Missing</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    {validationResult.checks.hasCertifications ? (
+                      <span className="text-emerald-400">✓ Certifications Found</span>
+                    ) : (
+                      <span className="text-rose-400">✗ Certifications Missing</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-center pt-2">
+                <button
+                  onClick={resetAll}
+                  className="px-6 py-2.5 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 hover:border-slate-700 hover:text-white text-slate-200 transition-smooth cursor-pointer shadow-lg"
+                >
+                  Upload Another Document
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Warning Banner for confidence 50-70 */}
+          {validationResult.isValid && validationResult.confidence >= 50 && validationResult.confidence <= 70 && (
+            <div className="glass-panel border-amber-500/20 bg-amber-500/5 rounded-2xl p-4 flex items-start gap-3 text-amber-400 text-xs font-semibold animate-fade-in">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" />
+              <div>
+                <strong className="text-white block font-extrabold mb-0.5">Resume Integrity Warning</strong>
+                This document may be incomplete or poorly structured. Standard ATS parsers may struggle to extract your complete credentials.
+              </div>
+            </div>
+          )}
+
+          {validationResult.isValid && (
+            <>
+              {/* Results Overview Bar */}
+              <div className="grid md:grid-cols-3 gap-6">
             
             {/* ATS Score Radial */}
             <div className="glass-panel border-slate-900 rounded-3xl p-6 flex flex-col items-center text-center justify-between min-h-[200px]">
@@ -925,6 +1065,85 @@ Report compiled by CareerDNA AI Analyst Sandbox
 
               {/* Sidebar recommendations teaser */}
               <div className="space-y-6">
+                {/* Resume Validation Audit Card */}
+                <div className="glass-panel border-indigo-950/20 bg-indigo-950/5 rounded-2xl p-5 space-y-4">
+                  <h4 className="font-bold text-white text-xs uppercase tracking-wider text-indigo-400 flex items-center gap-1.5 border-b border-slate-900/60 pb-2">
+                    <BadgeCheck className="h-4 w-4" /> Resume Validation Audit
+                  </h4>
+                  
+                  <div className="flex justify-between items-center bg-slate-950/60 border border-slate-900 p-2.5 rounded-xl text-xs">
+                    <span className="text-slate-400 font-semibold">Resume Type:</span>
+                    <span className="text-emerald-400 font-bold">✓ {validationResult.resumeType}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center bg-slate-950/60 border border-slate-900 p-2.5 rounded-xl text-xs">
+                    <span className="text-slate-400 font-semibold">Resume Confidence:</span>
+                    <span className="text-emerald-400 font-mono font-bold">{validationResult.confidence}%</span>
+                  </div>
+
+                  <div className="space-y-2 pt-1">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Validation Checklist</span>
+                    <div className="grid grid-cols-2 gap-2 text-[10px] font-semibold text-slate-300">
+                      <div className="flex items-center gap-1.5">
+                        {validationResult.checks.hasName ? (
+                          <span className="text-emerald-400">✓ Name Found</span>
+                        ) : (
+                          <span className="text-rose-400">✗ Name Missing</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {validationResult.checks.hasEmail ? (
+                          <span className="text-emerald-400">✓ Email Found</span>
+                        ) : (
+                          <span className="text-rose-400">✗ Email Missing</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {validationResult.checks.hasPhone ? (
+                          <span className="text-emerald-400">✓ Phone Found</span>
+                        ) : (
+                          <span className="text-rose-400">✗ Phone Missing</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {validationResult.checks.hasSkills ? (
+                          <span className="text-emerald-400">✓ Skills Found</span>
+                        ) : (
+                          <span className="text-rose-400">✗ Skills Missing</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {validationResult.checks.hasEducation ? (
+                          <span className="text-emerald-400">✓ Education Found</span>
+                        ) : (
+                          <span className="text-rose-400">✗ Education Missing</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {validationResult.checks.hasExperience ? (
+                          <span className="text-emerald-400">✓ Experience Found</span>
+                        ) : (
+                          <span className="text-rose-400">✗ Experience Missing</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {validationResult.checks.hasLinkedIn ? (
+                          <span className="text-emerald-400">✓ LinkedIn Found</span>
+                        ) : (
+                          <span className="text-rose-400">✗ LinkedIn Missing</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {validationResult.checks.hasCertifications ? (
+                          <span className="text-emerald-400">✓ Certs Found</span>
+                        ) : (
+                          <span className="text-rose-400">✗ Certs Missing</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="glass-panel border-slate-900 rounded-2xl p-5 space-y-4">
                   <h4 className="font-bold text-white text-xs uppercase tracking-wider text-slate-400">Quick Stats</h4>
                   <div className="grid grid-cols-2 gap-4">
@@ -1128,6 +1347,9 @@ Report compiled by CareerDNA AI Analyst Sandbox
               </div>
 
             </div>
+          )}
+
+            </>
           )}
 
         </div>

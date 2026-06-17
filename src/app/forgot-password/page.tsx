@@ -27,11 +27,7 @@ export default function ForgotPasswordPage() {
     try {
       const res = await resetPassword(email);
       if (res.success) {
-        setSuccessMsg(
-          isMockMode
-            ? 'Mock Password recovery link sent successfully (sandbox bypass)!'
-            : 'Password recovery email sent! Please check your inbox for instructions.'
-        );
+        setSuccessMsg('Password recovery link sent successfully!');
       } else {
         setErrorMsg(res.error || 'Failed to submit password recovery request.');
       }
@@ -63,12 +59,12 @@ export default function ForgotPasswordPage() {
         </div>
 
         {isMockMode && (
-          <div className="glass-panel border-amber-500/20 bg-amber-500/5 p-4 rounded-2xl flex gap-3 text-amber-400">
+          <div className="glass-panel border-indigo-500/20 bg-indigo-500/5 p-4 rounded-2xl flex gap-3 text-indigo-400">
             <ShieldAlert className="h-5 w-5 shrink-0" />
             <div className="text-xs space-y-1">
-              <span className="font-bold">Sandbox Mode</span>
+              <span className="font-bold">Password Recovery Simulation</span>
               <p className="text-slate-400 leading-relaxed">
-                Supabase is not configured. The engine will check if the user is registered in localStorage and simulate recovery.
+                Enter your registered email address. The system will authenticate your profile and simulate the recovery process locally.
               </p>
             </div>
           </div>

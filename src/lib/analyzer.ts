@@ -837,3 +837,194 @@ export function analyzeResume(text: string, roleId: string): ResumeAnalysisResul
     ]
   };
 }
+
+export interface ResumeValidationResult {
+  isValid: boolean;
+  confidence: number;
+  isDetected: 'Yes' | 'No';
+  resumeType: 'Student Resume' | 'Experienced Resume' | 'Academic CV' | 'Fresher Resume';
+  missingSections: string[];
+  warning?: string;
+  checks: {
+    hasName: boolean;
+    hasEmail: boolean;
+    hasPhone: boolean;
+    hasSkills: boolean;
+    hasEducation: boolean;
+    hasExperience: boolean;
+    hasLinkedIn: boolean;
+    hasCertifications: boolean;
+  };
+}
+
+export function validateResume(text: string): ResumeValidationResult {
+  const normalizedText = (text || '').trim();
+  const lowerText = normalizedText.toLowerCase();
+  
+  const words = normalizedText.split(/\s+/).filter(w => w.length > 0);
+  const wordCount = words.length;
+
+  // 1. Basic check indicators
+  const hasEmail = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(lowerText);
+  
+  const hasPhone = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/.test(lowerText) || 
+                   /\b\d{10}\b/.test(lowerText) ||
+                   /\+?\d[\d -]{8,12}\d/.test(lowerText);
+
+  const hasLinkedIn = /linkedin\.com/i.test(lowerText);
+  
+  const hasCertifications = /(certificat(e|ion|ed)s?|credentials?|pmp|csm|certified)/i.test(lowerText) || 
+                            /(projects|portfolio|personal projects)/i.test(lowerText);
+
+  const hasSkills = /(skills|technologies|technical expertise|core competencies|proficiencies|languages)/i.test(lowerText);
+  
+  const hasEducation = /(education|academic|university|degree|college|qualifications)/i.test(lowerText);
+  
+  const hasExperience = /(experience|employment|work history|career history|work background|work experience)/i.test(lowerText);
+
+  // Name presence check: Look at first 4 lines of text.
+  const lines = normalizedText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  let hasName = false;
+  const headerSectionPattern = /^(experience|education|skills|projects|certifications|summary|objective|contact|phone|email|linkedin|github)/i;
+  for (let i = 0; i < Math.min(4, lines.length); i++) {
+    const line = lines[i];
+    if (headerSectionPattern.test(line)) continue;
+    const lineWords = line.split(/\s+/);
+    if (lineWords.length >= 2 && lineWords.length <= 4) {
+      const isNamePattern = lineWords.every(word => /^[A-Z][A-Za-z]*$/.test(word));
+      if (isNamePattern) {
+        hasName = true;
+        break;
+      }
+    }
+  }
+  // Fallback: if there is no line matching this, but first line is short and has no email or symbols, we assume it's a name
+  if (!hasName && lines.length > 0) {
+    const firstLine = lines[0];
+    if (firstLine.length > 3 && firstLine.length < 35 && !firstLine.includes('@') && !firstLine.includes('/') && !headerSectionPattern.test(firstLine)) {
+      hasName = true;
+    }
+  }
+
+  // 2. Base Confidence Calculation
+  let confidence = 0;
+  if (hasEmail) confidence += 15;
+  if (hasPhone) confidence += 15;
+  if (hasSkills) confidence += 15;
+  if (hasEducation) confidence += 15;
+  if (hasExperience) confidence += 15;
+  if (hasName) confidence += 10;
+  if (hasCertifications) confidence += 10;
+  if (hasLinkedIn) confidence += 5;
+
+  // 3. Resume Keywords Check
+  const resumeKeywords = ['experience', 'work experience', 'education', 'skills', 'technical skills', 'projects', 'certifications', 'achievements', 'internship', 'responsibilities', 'technologies', 'professional summary', 'career objective', 'profile'];
+  let resumeKeywordCount = 0;
+  resumeKeywords.forEach(kw => {
+    if (lowerText.includes(kw)) resumeKeywordCount++;
+  });
+  if (resumeKeywordCount < 3) {
+    confidence -= 30;
+  }
+
+  // 4. Negative Document checks (Research papers and Invoices)
+  const researchKeywords = ['abstract', 'references', 'bibliography', 'literature review', 'methodology', 'research paper', 'journal', 'publication', 'conclusion'];
+  const invoiceKeywords = ['invoice', 'bill number', 'gst', 'tax', 'amount due', 'subtotal', 'invoice date'];
+  
+  let researchMatchCount = 0;
+  researchKeywords.forEach(kw => {
+    if (lowerText.includes(kw)) researchMatchCount++;
+  });
+
+  let invoiceMatchCount = 0;
+  invoiceKeywords.forEach(kw => {
+    if (lowerText.includes(kw)) invoiceMatchCount++;
+  });
+
+  if (researchMatchCount >= 2 || invoiceMatchCount >= 1) {
+    confidence -= 40;
+  }
+
+  // 5. Long non-resume document safety gate
+  if (normalizedText.length > 3000 && !hasEmail && !hasPhone && !hasSkills) {
+    confidence = 0;
+  }
+
+  // 6. Blank / short file checks
+  if (wordCount < 10 || normalizedText.length < 50) {
+    confidence = 0;
+  }
+
+  // Clean bounds clamp
+  confidence = Math.max(0, Math.min(100, confidence));
+
+  // 7. Resume Type Classification
+  let resumeType: 'Student Resume' | 'Experienced Resume' | 'Academic CV' | 'Fresher Resume' = 'Fresher Resume';
+  
+  const academicIndicators = ['publication', 'publications', 'research', 'journal', 'teaching', 'curriculum vitae', 'thesis'];
+  let academicMatches = 0;
+  academicIndicators.forEach(ind => {
+    if (lowerText.includes(ind)) academicMatches++;
+  });
+  
+  const studentIndicators = ['gpa', 'intern', 'internship', 'student', 'university', 'club', 'extracurricular'];
+  let studentMatches = 0;
+  studentIndicators.forEach(ind => {
+    if (lowerText.includes(ind)) studentMatches++;
+  });
+
+  const hasYears = /\b(19\d{2}|20\d{2})\b/.test(lowerText);
+  const expIndicators = ['senior', 'lead', 'manager', 'years experience', 'years of experience', 'accomplished', 'directed'];
+  let expMatches = 0;
+  expIndicators.forEach(ind => {
+    if (lowerText.includes(ind)) expMatches++;
+  });
+
+  if (academicMatches >= 2) {
+    resumeType = 'Academic CV';
+  } else if (studentMatches >= 2) {
+    resumeType = 'Student Resume';
+  } else if (hasExperience && (hasYears || expMatches >= 1)) {
+    resumeType = 'Experienced Resume';
+  }
+
+  const missingSections: string[] = [];
+  if (!hasName) missingSections.push('Name');
+  if (!hasEmail) missingSections.push('Email Address');
+  if (!hasPhone) missingSections.push('Phone Number');
+  if (!hasSkills) missingSections.push('Skills Section');
+  if (!hasEducation) missingSections.push('Education Section');
+  if (!hasExperience) missingSections.push('Experience Section');
+  if (!hasLinkedIn) missingSections.push('LinkedIn Profile');
+  if (!hasCertifications) missingSections.push('Certifications/Projects');
+
+  const isDetected = confidence >= 50 ? 'Yes' : 'No';
+  const isValid = confidence >= 50;
+
+  let warning: string | undefined = undefined;
+  if (confidence < 50) {
+    warning = 'This document does not appear to be a valid resume.';
+  } else if (confidence >= 50 && confidence <= 70) {
+    warning = 'This document may be incomplete or poorly structured.';
+  }
+
+  return {
+    isValid,
+    confidence,
+    isDetected,
+    resumeType,
+    missingSections,
+    warning,
+    checks: {
+      hasName,
+      hasEmail,
+      hasPhone,
+      hasSkills,
+      hasEducation,
+      hasExperience,
+      hasLinkedIn,
+      hasCertifications
+    }
+  };
+}
+

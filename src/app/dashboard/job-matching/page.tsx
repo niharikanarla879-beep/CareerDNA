@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useResume } from '@/lib/resume-context';
+import { useToast } from '@/lib/toast-context';
 import { targetCareers } from '@/lib/constants';
 import { roleKeywords } from '@/lib/analyzer';
 import { 
@@ -29,6 +30,7 @@ interface MatchedJob {
 
 export default function JobMatching() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   
   const { latestResume, targetCareerId, setTargetCareerId, projects, assessment } = useResume();
   const [sortedListings, setSortedListings] = useState<(MatchedJob & { compatibilityScore: number; compatibilityReason: string })[]>([]);
@@ -172,7 +174,7 @@ export default function JobMatching() {
 
   const runCustomJobMatch = () => {
     if (!customJd.trim()) {
-      alert('Please paste a job description.');
+      showToast('Please paste a job description.', 'error');
       return;
     }
 

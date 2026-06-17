@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useResume } from '@/lib/resume-context';
+import { useToast } from '@/lib/toast-context';
 import {
   ArrowLeft,
   GitFork,
@@ -11,12 +12,19 @@ import {
   Plus,
   Trash2,
   Code,
-  Globe
+  Globe,
+  Loader2,
+  Star,
+  CheckCircle2,
+  AlertTriangle,
+  Calendar,
+  Info
 } from 'lucide-react';
 
 export default function ProjectsTrackerPage() {
   const { user } = useAuth();
   const { projects, addProject, deleteProject, certs, addCert, removeCert } = useResume();
+  const { showToast } = useToast();
 
   // Project form states
   const [title, setTitle] = useState('');
@@ -24,38 +32,82 @@ export default function ProjectsTrackerPage() {
   const [tech, setTech] = useState('');
   const [github, setGithub] = useState('');
   const [demo, setDemo] = useState('');
+  const [verifying, setVerifying] = useState(false);
 
   // Cert form states
-  const [newCert, setNewCert] = useState('');
+  const [newCertName, setNewCertName] = useState('');
+  const [newCertIssuer, setNewCertIssuer] = useState('');
+  const [newCertUrlOrId, setNewCertUrlOrId] = useState('');
+  const [newCertExpiryDate, setNewCertExpiryDate] = useState('');
 
-  const handleAddProject = (e: React.FormEvent) => {
+  const handleAddProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
-      alert('Please fill out Project Title and Description.');
+      showToast('Please fill out Project Title and Description.', 'error');
+      return;
+    }
+    if (!github.trim()) {
+      showToast('Please provide a GitHub Repository link.', 'error');
       return;
     }
 
-    addProject({
+    setVerifying(true);
+    const result = await addProject({
       title: title.trim(),
       description: description.trim(),
       tech: tech.trim(),
       github: github.trim(),
       demo: demo.trim()
     });
+    setVerifying(false);
 
-    // Reset fields
-    setTitle('');
-    setDescription('');
-    setTech('');
-    setGithub('');
-    setDemo('');
+    if (result.success) {
+      if (result.error) {
+        showToast(`Project logged, but verification failed: ${result.error}`, 'info');
+      } else {
+        showToast('Project added to portfolio successfully!', 'success');
+      }
+      // Reset fields
+      setTitle('');
+      setDescription('');
+      setTech('');
+      setGithub('');
+      setDemo('');
+    } else {
+      showToast(result.error || 'Failed to log project.', 'error');
+    }
   };
 
   const handleAddCert = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCert.trim()) return;
-    addCert(newCert.trim());
-    setNewCert('');
+    if (!newCertName.trim() || !newCertIssuer.trim() || !newCertUrlOrId.trim()) {
+      showToast('Please fill out name, issuer, and credential ID or URL.', 'error');
+      return;
+    }
+    
+    // Check for duplicates
+    const isDuplicate = certs.some(c => 
+      c.name.toLowerCase() === newCertName.toLowerCase() &&
+      c.issuer.toLowerCase() === newCertIssuer.toLowerCase() &&
+      c.credentialIdOrUrl.toLowerCase() === newCertUrlOrId.toLowerCase()
+    );
+    if (isDuplicate) {
+      showToast('Duplicate certification detected. This credential is already logged.', 'error');
+      return;
+    }
+
+    addCert({
+      name: newCertName.trim(),
+      issuer: newCertIssuer.trim(),
+      credentialIdOrUrl: newCertUrlOrId.trim(),
+      expiryDate: newCertExpiryDate ? newCertExpiryDate : undefined
+    });
+    
+    showToast('Certification added successfully!', 'success');
+    setNewCertName('');
+    setNewCertIssuer('');
+    setNewCertUrlOrId('');
+    setNewCertExpiryDate('');
   };
 
   if (!user) return null;
@@ -152,9 +204,18 @@ export default function ProjectsTrackerPage() {
 
               <button
                 type="submit"
-                className="w-full py-2.5 bg-teal-600 hover:bg-teal-500 text-slate-950 font-bold rounded-xl text-xs transition-smooth flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-teal-600/15"
+                disabled={verifying}
+                className="w-full py-2.5 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-slate-950 font-bold rounded-xl text-xs transition-smooth flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-teal-600/15"
               >
-                <Plus className="h-4 w-4 stroke-[3]" /> Add Project to Portfolio
+                {verifying ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-slate-950" /> Verifying Repository...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 stroke-[3]" /> Add Project to Portfolio
+                  </>
+                )}
               </button>
             </form>
           </div>
@@ -203,6 +264,56 @@ export default function ProjectsTrackerPage() {
                           ))}
                         </div>
                       )}
+
+                      {/* GitHub verification metadata section */}
+                      <div className="pt-2">
+                        {project.isGithubVerified ? (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex flex-wrap items-center gap-1.5 text-[9px]">
+                              {project.isOfflineVerified ? (
+                                <span className="px-1.5 py-0.5 rounded font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wide flex items-center gap-0.5">
+                                  <AlertTriangle className="h-3 w-3" /> Offline Verified
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wide flex items-center gap-0.5">
+                                  <CheckCircle2 className="h-3 w-3" /> GitHub Verified
+                                </span>
+                              )}
+                              {project.isFork && (
+                                <span className="px-1.5 py-0.5 rounded font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase tracking-wide">
+                                  Forked (50% weight)
+                                </span>
+                              )}
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-2 text-[9px] text-slate-500 mt-1">
+                              {project.stars !== undefined && (
+                                <span className="flex items-center gap-0.5">⭐ {project.stars}</span>
+                              )}
+                              {project.forksCount !== undefined && (
+                                <span className="flex items-center gap-0.5">🍴 {project.forksCount}</span>
+                              )}
+                              {project.primaryLanguage && (
+                                <span className="flex items-center gap-0.5">💻 {project.primaryLanguage}</span>
+                              )}
+                              {project.lastUpdated && (
+                                <span className="flex items-center gap-0.5">🕒 {new Date(project.lastUpdated).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <span className="px-1.5 py-0.5 rounded font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase tracking-wide flex items-center gap-0.5 w-fit text-[9px]">
+                              <AlertTriangle className="h-3 w-3" /> Verification Failed (0 Score)
+                            </span>
+                            {project.githubVerificationError && (
+                              <p className="text-[9px] text-rose-400/80 leading-normal pl-1 italic">
+                                Reason: {project.githubVerificationError}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex justify-between items-center pt-3 border-t border-slate-900/60 relative z-10 text-xs">
@@ -232,7 +343,7 @@ export default function ProjectsTrackerPage() {
                       </div>
 
                       <button
-                        onClick={() => deleteProject(project.id)}
+                        onClick={() => { deleteProject(project.id); showToast('Project removed.', 'info'); }}
                         className="text-rose-400 hover:text-rose-300 p-1 transition-smooth cursor-pointer"
                         title="Delete project"
                       >
@@ -260,19 +371,54 @@ export default function ProjectsTrackerPage() {
               Manage your industry credentials. Verified certs provide a +2% score increment up to a maximum +10% dashboard bonus.
             </p>
 
-            <form onSubmit={handleAddCert} className="flex gap-2">
-              <input
-                type="text"
-                value={newCert}
-                onChange={(e) => setNewCert(e.target.value)}
-                placeholder="AWS Developer, PMP..."
-                className="flex-1 bg-slate-950 border border-slate-800 focus:border-teal-500 rounded-xl px-3 py-1.5 text-xs text-white outline-none transition-smooth"
-              />
+            <form onSubmit={handleAddCert} className="space-y-3">
+              <div className="space-y-1">
+                <label className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider">Cert Name</label>
+                <input
+                  type="text"
+                  value={newCertName}
+                  onChange={(e) => setNewCertName(e.target.value)}
+                  placeholder="AWS Developer Associate"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-teal-500 rounded-xl px-3 py-1.5 text-xs text-white outline-none transition-smooth"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider">Issuer</label>
+                <input
+                  type="text"
+                  value={newCertIssuer}
+                  onChange={(e) => setNewCertIssuer(e.target.value)}
+                  placeholder="Amazon Web Services"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-teal-500 rounded-xl px-3 py-1.5 text-xs text-white outline-none transition-smooth"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider">Credential ID or URL</label>
+                <input
+                  type="text"
+                  value={newCertUrlOrId}
+                  onChange={(e) => setNewCertUrlOrId(e.target.value)}
+                  placeholder="https://credly.com/certs/abc"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-teal-500 rounded-xl px-3 py-1.5 text-xs text-white outline-none transition-smooth"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider">Expiry Date (Optional)</label>
+                <input
+                  type="date"
+                  value={newCertExpiryDate}
+                  onChange={(e) => setNewCertExpiryDate(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-teal-500 rounded-xl px-3 py-1.5 text-xs text-white outline-none transition-smooth"
+                />
+              </div>
               <button
                 type="submit"
-                className="p-2 bg-teal-600 hover:bg-teal-500 text-slate-950 rounded-xl transition-smooth flex items-center justify-center cursor-pointer shadow-lg"
+                className="w-full py-2 bg-teal-600 hover:bg-teal-500 text-slate-950 font-bold rounded-xl text-xs transition-smooth flex items-center justify-center gap-1.5 cursor-pointer shadow-lg"
               >
-                <Plus className="h-4.5 w-4.5 stroke-[3]" />
+                <Plus className="h-4 w-4 stroke-[3]" /> Add Certificate
               </button>
             </form>
 
@@ -282,26 +428,84 @@ export default function ProjectsTrackerPage() {
                   No certifications registered.
                 </div>
               ) : (
-                certs.map((cert, index) => (
-                  <div 
-                    key={index}
-                    className="p-2.5 rounded-xl bg-slate-950 border border-slate-900 flex justify-between items-center gap-2 text-xs"
-                  >
-                    <span className="text-slate-200 font-bold leading-normal break-all min-w-0 flex-1">{cert}</span>
-                    <button
-                      onClick={() => removeCert(index)}
-                      className="text-rose-400 hover:text-rose-300 p-0.5 cursor-pointer shrink-0"
-                      title="Remove credential"
+                certs.map((cert, index) => {
+                  const name = typeof cert === 'string' ? cert : cert.name;
+                  const issuer = typeof cert === 'string' ? 'Legacy Cert' : cert.issuer;
+                  const platform = typeof cert === 'string' ? 'Other' : cert.platform;
+                  const isVerified = typeof cert === 'string' ? false : cert.isVerified;
+                  const credentialIdOrUrl = typeof cert === 'string' ? 'N/A' : cert.credentialIdOrUrl;
+                  const expiryDate = typeof cert === 'string' ? undefined : cert.expiryDate;
+                  const isExpired = expiryDate ? new Date(expiryDate) < new Date() : false;
+
+                  const getPlatformBadge = (plat: typeof platform) => {
+                    const badgeStyles: Record<string, string> = {
+                      AWS: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+                      Google: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+                      Microsoft: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+                      Cisco: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+                      Coursera: 'bg-teal-500/10 text-teal-400 border-teal-500/20',
+                      Udemy: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+                      Other: 'bg-slate-800 text-slate-400 border-slate-700'
+                    };
+                    return (
+                      <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold font-mono border uppercase tracking-wide ${badgeStyles[plat] || badgeStyles.Other}`}>
+                        {plat}
+                      </span>
+                    );
+                  };
+
+                  return (
+                    <div 
+                      key={index}
+                      className="p-3 rounded-2xl bg-slate-950 border border-slate-900 flex flex-col gap-2 relative overflow-hidden group text-xs"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="space-y-0.5 min-w-0 flex-1">
+                          <h4 className="text-white font-bold truncate">{name}</h4>
+                          <p className="text-[10px] text-slate-500 font-semibold">{issuer}</p>
+                        </div>
+                        <button
+                          onClick={() => { removeCert(index); showToast('Certification removed.', 'info'); }}
+                          className="text-rose-400 hover:text-rose-300 p-0.5 cursor-pointer shrink-0"
+                          title="Remove credential"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-900/40">
+                        {getPlatformBadge(platform)}
+                        
+                        {isVerified ? (
+                          <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wide">
+                            Verified
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700 uppercase tracking-wide">
+                            User Submitted
+                          </span>
+                        )}
+
+                        {isExpired && (
+                          <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase tracking-wide">
+                            Expired
+                          </span>
+                        )}
+                      </div>
+
+                      {credentialIdOrUrl && credentialIdOrUrl !== 'Legacy Value' && (
+                        <p className="text-[9px] text-slate-500 font-mono truncate pt-0.5">
+                          ID: {credentialIdOrUrl}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
 
             <div className="text-[10px] text-slate-500 border-t border-slate-900 pt-3 font-mono leading-relaxed">
-              * Certifications score bonus: +{Math.min(10, certs.length * 2)}% overall.
+              * Certifications score weighting adds to your ledger overall.
             </div>
 
           </div>
