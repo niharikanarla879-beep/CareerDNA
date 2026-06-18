@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from './auth-context';
-import { ResumeAnalysisResult, roleKeywords } from './analyzer';
+import { ResumeAnalysisResult, roleKeywords, validateResume } from './analyzer';
 
 export interface ResumeHistoryItem {
   id: string;
@@ -11,6 +11,7 @@ export interface ResumeHistoryItem {
   roleId: string;
   result: ResumeAnalysisResult;
   text: string;
+  isDemo?: boolean;
 }
 
 export interface PortfolioProject {
@@ -33,6 +34,7 @@ export interface PortfolioProject {
   readmeLength?: number;
   hasSourceFiles?: boolean;
   commitCount?: number;
+  isDemo?: boolean;
 }
 
 export interface CertificationItem {
@@ -43,6 +45,7 @@ export interface CertificationItem {
   isVerified: boolean;
   platform: 'Coursera' | 'Udemy' | 'Google' | 'AWS' | 'Microsoft' | 'Cisco' | 'Other';
   weight: number;
+  isDemo?: boolean;
 }
 
 export interface InterviewSession {
@@ -71,6 +74,7 @@ export interface InterviewSession {
     ideal: string;
     missed: string[];
   }[];
+  isDemo?: boolean;
 }
 
 export interface AssessmentData {
@@ -79,6 +83,7 @@ export interface AssessmentData {
   values: Record<string, number>;
   interests: string[];
   personality: Record<string, number>;
+  isDemo?: boolean;
 }
 
 export interface DnaScores {
@@ -100,6 +105,8 @@ export interface DnaScores {
   completedWeightsSum: number;
   isLocked: boolean;
   pendingModules: string[];
+  profileCompletionPercent: number;
+  confidenceLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERIFIED';
 }
 
 export interface AchievementBadge {
@@ -270,7 +277,8 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
             credentialIdOrUrl: 'Legacy Value',
             isVerified: platform !== 'Other',
             platform,
-            weight
+            weight,
+            isDemo: true
           };
         }
         return c as CertificationItem;
@@ -753,7 +761,8 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
         riasec: { Realistic: 70, Investigative: 90, Artistic: 50, Social: 60, Enterprising: 75, Conventional: 80 },
         values: { Achievement: 90, Independence: 85, Recognition: 70, Relationships: 80, Support: 75, WorkingConditions: 85 },
         interests: ['Software Architecture', 'Web Systems', 'Artificial Intelligence', 'Interactive Design'],
-        personality: { Openness: 85, Conscientiousness: 90, Extraversion: 70, Agreeableness: 75, EmotionalStability: 80 }
+        personality: { Openness: 85, Conscientiousness: 90, Extraversion: 70, Agreeableness: 75, EmotionalStability: 80 },
+        isDemo: true
       };
       localStorage.setItem(`careerdna_assessment_${demoId}`, JSON.stringify(mockAssessment));
 
@@ -766,7 +775,9 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
           tech: 'TypeScript, React, Next.js, Node.js, Express, SQL, Redis',
           github: 'https://github.com/demo/insightx',
           demo: 'https://insightx-demo.vercel.app',
-          strengthScore: 92
+          strengthScore: 92,
+          isGithubVerified: true,
+          isDemo: true
         },
         {
           id: 'demo-p2',
@@ -775,7 +786,9 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
           tech: 'React, Node.js, Express, Mongoose, MongoDB, CSS3',
           github: 'https://github.com/demo/agri-marketplace',
           demo: 'https://agri-marketplace.vercel.app',
-          strengthScore: 88
+          strengthScore: 88,
+          isGithubVerified: true,
+          isDemo: true
         },
         {
           id: 'demo-p3',
@@ -784,16 +797,42 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
           tech: 'Next.js, Recharts, Tailwind CSS, LocalStorage API',
           github: 'https://github.com/demo/careerdna',
           demo: 'https://careerdna-h2s.vercel.app',
-          strengthScore: 95
+          strengthScore: 95,
+          isGithubVerified: true,
+          isDemo: true
         }
       ];
       localStorage.setItem(`careerdna_projects_${demoId}`, JSON.stringify(mockProjects));
 
       // Inject Certifications
-      const mockCerts = [
-        'AWS Certified Solutions Architect - Associate',
-        'Google IT Automation with Python Professional Certificate',
-        'Meta Front-End Developer Professional Certificate'
+      const mockCerts: CertificationItem[] = [
+        {
+          name: 'AWS Certified Solutions Architect - Associate',
+          issuer: 'AWS',
+          credentialIdOrUrl: 'demo-aws-123',
+          isVerified: true,
+          platform: 'AWS',
+          weight: 1.0,
+          isDemo: true
+        },
+        {
+          name: 'Google IT Automation with Python Professional Certificate',
+          issuer: 'Google',
+          credentialIdOrUrl: 'demo-google-123',
+          isVerified: true,
+          platform: 'Google',
+          weight: 1.0,
+          isDemo: true
+        },
+        {
+          name: 'Meta Front-End Developer Professional Certificate',
+          issuer: 'Coursera',
+          credentialIdOrUrl: 'demo-meta-123',
+          isVerified: true,
+          platform: 'Coursera',
+          weight: 0.75,
+          isDemo: true
+        }
       ];
       localStorage.setItem(`careerdna_certs_${demoId}`, JSON.stringify(mockCerts));
 
@@ -834,7 +873,8 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
             { category: 'Content', text: 'Integrate Docker container structures in your project descriptions to demonstrate DevOps capability.', impact: 'High' },
             { category: 'Formatting', text: 'Structure your education headers specifically to bypass parsing filter checkpoints.', impact: 'Medium' }
           ]
-        }
+        },
+        isDemo: true
       };
       localStorage.setItem(`careerdna_resume_history_${demoId}`, JSON.stringify([mockResumeHistoryItem]));
 
@@ -885,7 +925,8 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
             ideal: 'Indexes use B-Trees or Hash tables to reduce search time. Primary trade-offs include storage size overhead and performance degradation on writes (INSERT, UPDATE, DELETE).',
             missed: ['clustered indexes', 'write overhead', 'storage index size']
           }
-        ]
+        ],
+        isDemo: true
       };
       localStorage.setItem(`careerdna_interview_history_${demoId}`, JSON.stringify([mockInterviewSession]));
 
@@ -1040,12 +1081,48 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
 
     // 9. Weighted DNA Score Calculation (Dynamic Completed Modules Only)
     const modules = [
-      { id: 'assessment', name: 'Career Assessment', completed: assessment?.taken === true, score: assessmentScore, weight: 0.25 },
-      { id: 'resume', name: 'ATS Resume', completed: latestResume !== null, score: resumeScore, weight: 0.20 },
-      { id: 'projects', name: 'Projects', completed: projects.length >= 1, score: projectScore, weight: 0.15 },
-      { id: 'certs', name: 'Certifications', completed: certs.length >= 1, score: certsScore, weight: 0.10 },
-      { id: 'interview', name: 'Interview Coach', completed: interviewHistory.length >= 1, score: interviewScore, weight: 0.20 },
-      { id: 'roadmap', name: 'Skill Completion', completed: Object.values(roadmapProgress).some(v => v === true) || roadmapProgressPercent > 0, score: roadmapProgressPercent, weight: 0.10 }
+      { 
+        id: 'assessment', 
+        name: 'Career Assessment', 
+        completed: assessment !== null && assessment.taken === true && assessment.isDemo !== true, 
+        score: assessmentScore, 
+        weight: 0.25 
+      },
+      { 
+        id: 'resume', 
+        name: 'ATS Resume', 
+        completed: latestResume !== null && latestResume.isDemo !== true && validateResume(latestResume.text).confidence >= 50, 
+        score: resumeScore, 
+        weight: 0.20 
+      },
+      { 
+        id: 'projects', 
+        name: 'Projects', 
+        completed: projects.length >= 1 && projects.some(p => p.isDemo !== true && (p.isGithubVerified === true || p.isOfflineVerified === true)), 
+        score: projectScore, 
+        weight: 0.15 
+      },
+      { 
+        id: 'certs', 
+        name: 'Certifications', 
+        completed: certs.length >= 1 && certs.some(c => c.isDemo !== true), 
+        score: certsScore, 
+        weight: 0.10 
+      },
+      { 
+        id: 'interview', 
+        name: 'Interview Coach', 
+        completed: interviewHistory.length >= 1 && interviewHistory.some(s => s.isDemo !== true), 
+        score: interviewScore, 
+        weight: 0.20 
+      },
+      { 
+        id: 'roadmap', 
+        name: 'Skill Completion', 
+        completed: latestResume !== null && latestResume.isDemo !== true && validateResume(latestResume.text).confidence >= 50, 
+        score: roadmapProgressPercent, 
+        weight: 0.10 
+      }
     ];
 
     const completedModules = modules.filter(m => m.completed);
@@ -1063,6 +1140,19 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
         completedWeightsSum += m.weight;
       });
       finalDnaScore = Math.round((weightedSum / completedWeightsSum));
+    }
+
+    const profileCompletionPercent = Math.round((completedModulesCount / totalModules) * 100);
+    
+    let confidenceLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERIFIED' = 'LOW';
+    if (completedModulesCount === 6) {
+      confidenceLevel = 'VERIFIED';
+    } else if (profileCompletionPercent >= 67) {
+      confidenceLevel = 'HIGH';
+    } else if (profileCompletionPercent >= 34) {
+      confidenceLevel = 'MEDIUM';
+    } else {
+      confidenceLevel = 'LOW';
     }
 
     const skillGapPenalty = missing.length * 2;
@@ -1093,7 +1183,9 @@ export function ResumeProvider({ children }: { children: React.ReactNode }) {
       totalModules,
       completedWeightsSum,
       isLocked: false,
-      pendingModules
+      pendingModules,
+      profileCompletionPercent,
+      confidenceLevel
     };
   }, [assessment, latestResume, interviewHistory, projects, certs, roadmapProgress, targetCareerId]);
 

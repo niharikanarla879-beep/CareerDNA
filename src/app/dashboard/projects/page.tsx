@@ -226,7 +226,7 @@ export default function ProjectsTrackerPage() {
             
             {projects.length === 0 ? (
               <div className="glass-panel border-slate-900 rounded-2xl p-6 text-center text-xs text-slate-500 font-semibold py-8">
-                No projects registered in your portfolio. Use the form above to add projects.
+                No projects added yet
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 gap-4">
@@ -425,7 +425,7 @@ export default function ProjectsTrackerPage() {
             <div className="space-y-2 pt-2">
               {certs.length === 0 ? (
                 <div className="p-4 rounded-xl bg-slate-900/20 border border-slate-900 text-center text-xs text-slate-500 font-semibold">
-                  No certifications registered.
+                  No certifications added yet
                 </div>
               ) : (
                 certs.map((cert, index) => {

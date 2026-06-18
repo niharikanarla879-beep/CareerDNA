@@ -102,21 +102,36 @@ export default function CompleteReportPage() {
         {/* SECTION 1: GLOBAL SCORES OVERVIEW */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="glass-panel border-indigo-500/10 bg-indigo-500/5 p-6 rounded-2xl text-center flex flex-col justify-between items-center print:border-slate-300 print:bg-transparent">
-            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Overall CareerDNA Rating</span>
-            <div className="my-3 font-mono font-extrabold text-5xl text-indigo-400 print:text-indigo-600">{scores.finalDnaScore} <span className="text-xs text-slate-500">/ 100</span></div>
-            <p className="text-[10px] text-slate-400 leading-normal">Composite rating of assessments, verified projects, ATS validations, and interview transcripts.</p>
+            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+              {scores.profileCompletionPercent < 100 ? 'CareerDNA Preliminary Score' : 'CareerDNA Score (Verified)'}
+            </span>
+            <div className="my-2 font-mono font-extrabold text-4xl text-indigo-400 print:text-indigo-600">
+              {scores.finalDnaScore} <span className="text-xs text-slate-500">/ 100</span>
+            </div>
+            <div className="text-[10px] space-y-1 mt-1 text-slate-400">
+              <div>Profile Completion: <strong className="text-white print:text-slate-900">{scores.profileCompletionPercent}%</strong></div>
+              <div>Confidence: <strong className="text-indigo-400 font-bold">{scores.confidenceLevel}</strong></div>
+            </div>
           </div>
 
           <div className="glass-panel border-slate-900 bg-slate-950/20 p-6 rounded-2xl text-center flex flex-col justify-between items-center print:border-slate-300">
             <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">ATS Resume Audit Score</span>
-            <div className="my-3 font-mono font-extrabold text-5xl text-teal-400 print:text-teal-600">{resumeScore || 'N/A'} <span className="text-xs text-slate-500">/ 100</span></div>
-            <p className="text-[10px] text-slate-400 leading-normal">Score calculated based on syntax checks, chronological consistency, and keyword coverage metrics.</p>
+            <div className="my-2 font-mono font-extrabold text-4xl text-teal-400 print:text-teal-600">
+              {resumeScore || 'N/A'} <span className="text-xs text-slate-500">/ 100</span>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-normal mt-1">
+              Score calculated based on formatting, syntax structure, and keyword coverage.
+            </p>
           </div>
 
           <div className="glass-panel border-slate-900 bg-slate-950/20 p-6 rounded-2xl text-center flex flex-col justify-between items-center print:border-slate-300">
             <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">Job Readiness Alignment</span>
-            <div className="my-3 font-mono font-extrabold text-5xl text-purple-400 print:text-purple-600">{scores.jobReadinessScore}%</div>
-            <p className="text-[10px] text-slate-400 leading-normal">Calculated keyword mapping matching targets vs current skill profiles, adjusting for roadmap progress.</p>
+            <div className="my-2 font-mono font-extrabold text-4xl text-purple-400 print:text-purple-600">
+              {scores.jobReadinessScore}%
+            </div>
+            <p className="text-[10px] text-slate-400 leading-normal mt-1">
+              Calculated keyword mapping matching targets vs current skill profiles.
+            </p>
           </div>
         </div>
 

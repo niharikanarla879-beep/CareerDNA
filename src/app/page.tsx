@@ -21,12 +21,11 @@ export default function LandingPage() {
   const { showToast } = useToast();
   const router = useRouter();
 
-  const handleLaunchDemo = async () => {
-    const success = await loginDemoUser();
-    if (success) {
+  const handleAccessDashboard = () => {
+    if (typeof window !== 'undefined' && localStorage.getItem('careerdna_user')) {
       router.push('/dashboard');
     } else {
-      showToast('Failed to initialize demo profile.', 'error');
+      router.push('/login');
     }
   };
 
@@ -90,10 +89,10 @@ export default function LandingPage() {
 
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start pt-2">
               <button
-                onClick={handleLaunchDemo}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 px-8 py-4 font-bold shadow-lg shadow-amber-500/15 transition-smooth cursor-pointer"
+                onClick={handleAccessDashboard}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 to-teal-400 hover:from-indigo-600 hover:to-teal-500 text-slate-950 px-8 py-4 font-bold shadow-lg shadow-indigo-500/15 transition-smooth cursor-pointer"
               >
-                <Sparkles className="h-4 w-4 stroke-[3] text-slate-950" /> Access Candidate Dashboard
+                <ArrowRight className="h-4 w-4 stroke-[3] text-slate-950" /> Access Candidate Dashboard
               </button>
               <Link 
                 href="/register" 
