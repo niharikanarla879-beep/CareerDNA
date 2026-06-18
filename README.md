@@ -66,10 +66,6 @@ graph TD
 
 ---
 
-## 🎥 Demo Video
-### Hackathon Demo Walkthrough
-[![CareerDNA Hackathon Demo](https://img.shields.io/badge/Demo_Video-Click_to_Watch-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=dQw4w9WgXcQ) *(Link Placeholder - 2-3 Minutes Walkthrough)*
-
 #### Key Walkthrough Modules:
 * **Psychometric Assessment**: DNA Decoder RIASEC interest mapping.
 * **ATS Resume Analysis**: Client-side document parser scoring and tailing.
@@ -254,8 +250,4 @@ CareerDNA/
 ├── public/                     # Static svgs & worker files
 └── FINAL_READINESS_REPORT.md   # Launch quality deliverables report
 ```
-
----
-
-## 📄 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+ 
