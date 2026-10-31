@@ -17,8 +17,6 @@ import {
 } from 'lucide-react';
 
 export default function LandingPage() {
-  const { loginDemoUser } = useResume();
-  const { showToast } = useToast();
   const router = useRouter();
 
   const handleAccessDashboard = () => {
@@ -50,7 +48,7 @@ export default function LandingPage() {
 
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
             <a href="#features" className="hover:text-indigo-400 transition-smooth">Features</a>
-            <a href="#about" className="hover:text-indigo-400 transition-smooth font-mono text-xs bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-amber-400 rounded-full">Hack2Skill Submission</a>
+            <a href="#about" className="hover:text-indigo-400 transition-smooth font-mono text-xs bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-amber-400 rounded-full">Platform Overview</a>
           </nav>
 
           <div className="flex items-center gap-4">
