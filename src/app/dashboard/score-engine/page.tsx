@@ -532,7 +532,7 @@ export default function ScoreEnginePage() {
           <div className="glass-panel border-amber-500/20 bg-amber-500/[0.02] rounded-3xl p-5 md:p-6 space-y-4 relative z-10">
             <h3 className="font-bold text-amber-400 text-sm flex items-center gap-2">
               <Shield className="h-4.5 w-4.5" />
-              <span>Redrob Pitch Portal: Score Engine Normalization Audit</span>
+              <span>Hackathon Pitch Portal: Score Engine Normalization Audit</span>
             </h3>
             <p className="text-xs text-slate-300 leading-relaxed">
               <strong>Why is the CareerDNA Score high even when some modules are pending?</strong>

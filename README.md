@@ -23,7 +23,7 @@
 ---
 
 ## 📌 Submission Overview
-* **Hackathon Evaluation:** Hack2Skill Track 3 & Redrob Evaluation
+* **Hackathon Evaluation:** Hack2Skill Track 3 & Recruiter Evaluation
 * **Developer Name:** Niharika Narla
 * **Institute:** Sree Chaitanya Institute of Technological Sciences
 * **Department:** Computer Science and Engineering (CSM)
@@ -54,7 +54,7 @@ graph TD
     C -->|Calculate Bonus| D[Audio simulator Interview]
     D -->|Speech Grading| E[Learning Roadmaps]
     E -->|Bridge Missing Skills| F[CareerDNA Unified Score]
-    F -->|Recruiter Sync| G[Redrob Sourcing Ready]
+    F -->|Recruiter Sync| G[Recruiter Sourcing Ready]
 ```
 
 1. **DNA Decoder**: A 15-question psychometric questionnaire that maps Realistic, Investigative, Artistic, Social, Enterprising, and Conventional (RIASEC) traits to define target roles.
@@ -110,8 +110,8 @@ Empowers candidates with self-guided, automated career diagnostics. Students ins
 ### Impact on Recruiters
 Accelerates sourcing loops by providing recruiter-ready, pre-vetted candidate records. Instead of screening hundreds of resumes, recruiters look at verified DNA profiles containing verified scores, certified credentials, and recorded presentation evaluations.
 
-### Integration Value for Redrob
-CareerDNA fits perfectly into the **Redrob Ecosystem** as an **Employability Validator**. Candidates sign up on CareerDNA to assess their skills, build resumes, track roadmaps, and practice interviews. This generates a secure CareerDNA score that Redrob recruiters use to filter high-readiness candidates instantly.
+### Integration Value for Recruiter
+CareerDNA fits perfectly into the **Recruiter Ecosystem** as an **Employability Validator**. Candidates sign up on CareerDNA to assess their skills, build resumes, track roadmaps, and practice interviews. This generates a secure CareerDNA score that Recruiter recruiters use to filter high-readiness candidates instantly.
 
 ### AI-First Approach
 Utilizes client-side audio recognition to calculate clarity metrics, paired with Gemini API models to parse, review, and suggest resume tailoring bullets, creating a personalized copilot for candidates.

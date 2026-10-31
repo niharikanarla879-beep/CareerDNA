@@ -223,7 +223,7 @@ export default function DashboardOverview() {
           }`}
         >
           <Sparkles className="h-4 w-4 text-amber-400 animate-pulse" />
-          <span>Redrob Pitch Portal (Judges)</span>
+          <span>Hackathon Pitch Portal (Judges)</span>
         </button>
       </div>
 
@@ -818,7 +818,7 @@ export default function DashboardOverview() {
               <span>CareerDNA Hack2Skill Ideathon Pitch Desk</span>
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed text-justify">
-              CareerDNA is built to enhance the <strong>Redrob Ecosystem</strong> by acting as its automated talent intelligence layer. It connects vocational evaluations, resume analysis, targeted project roadmaps, and microphone speech metrics into a single unified workspace.
+              CareerDNA is built to enhance the <strong>Recruiter Ecosystem</strong> by acting as its automated talent intelligence layer. It connects vocational evaluations, resume analysis, targeted project roadmaps, and microphone speech metrics into a single unified workspace.
             </p>
           </div>
 
@@ -854,7 +854,7 @@ export default function DashboardOverview() {
                 <span>User Journey Loop</span>
               </h4>
               <p className="text-xs text-slate-400 leading-relaxed text-justify">
-                A seamless 8-stage loop: Assessment determines interest profiles → ATS Scan audits formatting → Skill Gaps pinpoint missing tech → Roadmaps serve resource links → Projects tracker calculates strength → Interview coach records speech clarity → Redrob Readiness compiles → Job matching triggers.
+                A seamless 8-stage loop: Assessment determines interest profiles → ATS Scan audits formatting → Skill Gaps pinpoint missing tech → Roadmaps serve resource links → Projects tracker calculates strength → Interview coach records speech clarity → Recruiter Readiness compiles → Job matching triggers.
               </p>
             </div>
 
@@ -902,14 +902,14 @@ export default function DashboardOverview() {
               </p>
             </div>
 
-            {/* 8. Redrob Ecosystem Value */}
+            {/* 8. Recruiter Ecosystem Value */}
             <div className="glass-panel border-indigo-950/40 bg-indigo-950/5 p-5 rounded-2xl space-y-3 border-dashed">
               <h4 className="font-bold text-indigo-400 text-sm flex items-center gap-2">
                 <span className="h-6 w-6 rounded-lg bg-indigo-500/15 flex items-center justify-center text-xs text-indigo-400 font-mono">8</span>
-                <span>Redrob Ecosystem Integration Value</span>
+                <span>Recruiter Ecosystem Integration Value</span>
               </h4>
               <p className="text-xs text-slate-400 leading-relaxed text-justify">
-                CareerDNA operates as the **AI Career Intelligence Layer for Redrob**. By converting candidates&apos; credentials into a structured **Redrob Readiness Score**, it feeds pre-screened talent metrics directly to Redrob recruiters, shortening interview pipeline overheads by 75%.
+                CareerDNA operates as the **AI Career Intelligence Layer for Recruiter**. By converting candidates&apos; credentials into a structured **Recruiter Readiness Score**, it feeds pre-screened talent metrics directly to Recruiter recruiters, shortening interview pipeline overheads by 75%.
               </p>
             </div>
 
@@ -935,7 +935,7 @@ export default function DashboardOverview() {
             </div>
             <div>
               <h3 className="font-extrabold text-white text-base">Judge Mode System Telemetry</h3>
-              <p className="text-[10px] text-slate-500 font-medium">Internal validator variables and compile logs for Redrob readiness evaluations</p>
+              <p className="text-[10px] text-slate-500 font-medium">Internal validator variables and compile logs for Recruiter readiness evaluations</p>
             </div>
           </div>
 
